@@ -213,7 +213,7 @@ for atom_i in mol.GetAtoms():
         for pair in pairs:
            aa=f"{pair[0]}-{atom_assigned_types[atom_i.GetIdx()]}-{pair[1]}"
            par_aa=angle_params[aa]
-           list_angle_params_to_print.append((aa,par_aa[0],par_aa[1])) 
+           list_angle_params_to_print.append((aa,pair[0]+1,atom_i.GetIdx()+1,pair[1]+1,par_aa[0],par_aa[1])) 
     else:
         continue
 
@@ -235,7 +235,7 @@ for atom_i in mol.GetAtoms():
             aa=f"{atom_assigned_types[atom_i.GetIdx()]}-{tri[0]}-{tri[1]}-{tri[2]}"
             if aa in improper_dihedral_params.keys():
                 par_aa=improper_dihedral_params[aa]
-                list_impro_dihedrals_params_to_print.append((aa,par_aa[0],par_aa[1],par_aa[2])) 
+                list_impro_dihedrals_params_to_print.append((aa,atom_i.GetIdx()+1,tri[0]+1,tri[1]+1,tri[2]+1,par_aa[0],par_aa[1],par_aa[2])) 
             else:
                 continue
     else:
@@ -264,10 +264,10 @@ for atom_i in mol.GetAtoms():
                                 bb=f"{atom_assigned_types[j_nghb.GetIdx()]}-{atom_assigned_types[atom_j.GetIdx()]}-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[i_nghb.GetIdx()]}"
                                 if aa in dihedral_params.keys():
                                     par_aa=dihedral_params[aa]
-                                    list_dihedrals_params_to_print.append((aa,par_aa[0],par_aa[1],par_aa[2]))
+                                    list_dihedrals_params_to_print.append((aa,i_nghb.GetIdx()+1,atom_i.GetIdx()+1,atom_j.GetIdx()+1,j_nghb.GetIdx()+1,par_aa[0],par_aa[1],par_aa[2]))
                                 elif bb in dihedral_params.keys():
                                     par_bb=dihedral_params[bb]
-                                    list_dihedrals_params_to_print.append((bb,par_bb[0],par_bb[1],par_bb[2]))
+                                    list_dihedrals_params_to_print.append((bb,j_nghb.GetIdx()+1,atom_j.GetIdx()+1,atom_i.GetIdx()+1,i_nghb.GetIdx()+1,par_bb[0],par_bb[1],par_bb[2]))
                                 else:
                                     continue
                             else:
@@ -334,26 +334,26 @@ if sys.argv[3]:
 else:
     file="topology.top"
 with open(file,"w+") as f:
-    f.write(f"[AtomTypes]\n")
+    f.write(f"[AtomTypes] {len(list_atom_types_to_print)}\n")
     types_df=pd.DataFrame(list_atom_types_to_print,columns=["Idx","Symb","Type","MW"],index=None)
-    types_df.to_csv(f,sep="\t",header=True,index=False)
-    f.write(f"\n[Bonds]\n")
+    types_df.to_csv(f,sep="\t",header=False,index=False)
+    f.write(f"\n[Bonds] {len(list_bond_params_to_print)}\n")
     bonds_df=pd.DataFrame(list_bond_params_to_print,columns=["Idx1","Idx2","b0","kb"],index=None)
-    bonds_df.to_csv(f,sep="\t",header=True,index=False)
-    f.write(f"\n[Angles]\n")
-    angles_df=pd.DataFrame(list_angle_params_to_print,columns=["Types","th0","cth"],index=None)
-    angles_df.to_csv(f,sep="\t",header=True,index=False)
-    f.write(f"\n[ImproperDihedrals]\n")
-    impdie_df=pd.DataFrame(list_impro_dihedrals_params_to_print,columns=["Types","phase","kd","pn"],index=None)
-    impdie_df.to_csv(f,sep="\t",header=True,index=False)
-    f.write(f"\n[Dihedrals]\n")
-    die_df=pd.DataFrame(list_dihedrals_params_to_print,columns=["Types","phase","kd","pn"],index=None)
-    die_df.to_csv(f,sep="\t",header=True,index=False)
+    bonds_df.to_csv(f,sep="\t",header=False,index=False)
+    f.write(f"\n[Angles] {len(list_angle_params_to_print)}\n")
+    angles_df=pd.DataFrame(list_angle_params_to_print,columns=["Types","Idx1","Idx2","Idx3","th0","cth"],index=None)
+    angles_df.to_csv(f,sep="\t",header=False,index=False)
+    f.write(f"\n[ImproperDihedrals] {len(list_impro_dihedrals_params_to_print)}\n")
+    impdie_df=pd.DataFrame(list_impro_dihedrals_params_to_print,columns=["Types","Idx1","Idx2","Idx3","Idx4","phase","kd","pn"],index=None)
+    impdie_df.to_csv(f,sep="\t",header=False,index=False)
+    f.write(f"\n[Dihedrals] {len(list_dihedrals_params_to_print)}\n")
+    die_df=pd.DataFrame(list_dihedrals_params_to_print,columns=["Types","Idx1","Idx2","Idx3","Idx4","phase","kd","pn"],index=None)
+    die_df.to_csv(f,sep="\t",header=False,index=False)
     f.write(f"\n[LJ]\n")
     lj_df=pd.DataFrame(list_LJ_params_to_print,columns=["Idx","sigma","epsilon"],index=None)
-    lj_df.to_csv(f,sep="\t",header=True,index=False)
+    lj_df.to_csv(f,sep="\t",header=False,index=False)
     f.write(f"\n[Charges]\n")
     chg_df=pd.DataFrame(list_resp_charges_to_print,columns=["Idx","charge"],index=None)
-    chg_df.to_csv(f,sep="\t",header=True,index=False)
+    chg_df.to_csv(f,sep="\t",header=False,index=False)
     f.write(f" ")
 print(f"Topology file written in {file}")

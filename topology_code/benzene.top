@@ -1,5 +1,4 @@
 [AtomTypes]
-Idx	Symb	Type	MW
 1	C	CA	12.01
 2	C	CA	12.01
 3	C	CA	12.01
@@ -14,7 +13,6 @@ Idx	Symb	Type	MW
 12	H	HA	1.008
 
 [Bonds]
-Idx1	Idx2	b0	kb
 1	2	0.14	392459.2
 2	3	0.14	392459.2
 3	4	0.14	392459.2
@@ -29,7 +27,6 @@ Idx1	Idx2	b0	kb
 6	12	0.108	307105.6
 
 [Angles]
-Types	th0	cth
 CA-CA-CA	120.0	527.184
 CA-CA-HA	120.0	418.4
 CA-CA-HA	120.0	418.4
@@ -50,13 +47,10 @@ CA-CA-HA	120.0	418.4
 CA-CA-HA	120.0	418.4
 
 [ImproperDihedrals]
-Types	phase	kd	pn
 
 [Dihedrals]
-Types	phase	kd	pn
 
 [LJ]
-Idx	sigma	epsilon
 1	3.39967×10^-01	3.59824×10^-01
 2	3.39967×10^-01	3.59824×10^-01
 3	3.39967×10^-01	3.59824×10^-01
@@ -71,7 +65,6 @@ Idx	sigma	epsilon
 12	2.59964×10^-01	6.276×10^-02
 
 [Charges]
-Idx	charge
 1	-0.14289394335936967
 2	-0.10872351087523749
 3	-0.10872351087523735
