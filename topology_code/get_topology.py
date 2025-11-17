@@ -233,9 +233,33 @@ for atom_i in mol.GetAtoms():
         tris = list(itertools.permutations(symbols, 3))
         for tri in tris:
             aa=f"{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[0]]}-{atom_assigned_types[tri[1]]}-{atom_assigned_types[tri[2]]}"
+            bb=f"X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[0]]}-{atom_assigned_types[tri[1]]}"
+            cc=f"X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[1]]}-{atom_assigned_types[tri[2]]}"
+            dd=f"X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[0]]}-{atom_assigned_types[tri[2]]}"
+            ee=f"X-X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[0]]}"
+            ff=f"X-X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[1]]}"
+            gg=f"X-X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[2]]}"
             if aa in improper_dihedral_params.keys():
                 par_aa=improper_dihedral_params[aa]
-                list_impro_dihedrals_params_to_print.append((aa,atom_i.GetIdx()+1,tri[0]+1,tri[1]+1,tri[2]+1,par_aa[0],par_aa[1],par_aa[2])) 
+                list_impro_dihedrals_params_to_print.append((aa,atom_i.GetIdx()+1,tri[0]+1,tri[1]+1,tri[2]+1,par_aa[0],par_aa[1],par_aa[2],par_aa[3])) 
+            elif bb in improper_dihedral_params.keys():
+                par_bb=improper_dihedral_params[bb]
+                list_impro_dihedrals_params_to_print.append((bb,atom_i.GetIdx()+1,tri[0]+1,tri[1]+1,tri[2]+1,par_bb[0],par_bb[1],par_bb[2],par_bb[3])) 
+            elif cc in improper_dihedral_params.keys():
+                par_cc=improper_dihedral_params[cc]
+                list_impro_dihedrals_params_to_print.append((cc,atom_i.GetIdx()+1,tri[0]+1,tri[1]+1,tri[2]+1,par_cc[0],par_cc[1],par_cc[2],par_cc[3])) 
+            elif dd in improper_dihedral_params.keys():
+                par_dd=improper_dihedral_params[dd]
+                list_impro_dihedrals_params_to_print.append((dd,atom_i.GetIdx()+1,tri[0]+1,tri[1]+1,tri[2]+1,par_dd[0],par_dd[1],par_dd[2],par_dd[3])) 
+            elif ee in improper_dihedral_params.keys():
+                par_ee=improper_dihedral_params[ee]
+                list_impro_dihedrals_params_to_print.append((ee,atom_i.GetIdx()+1,tri[0]+1,tri[1]+1,tri[2]+1,par_ee[0],par_ee[1],par_ee[2],par_ee[3])) 
+            elif ff in improper_dihedral_params.keys():
+                par_ff=improper_dihedral_params[ff]
+                list_impro_dihedrals_params_to_print.append((ff,atom_i.GetIdx()+1,tri[0]+1,tri[1]+1,tri[2]+1,par_ff[0],par_ff[1],par_ff[2],par_ff[3])) 
+            elif gg in improper_dihedral_params.keys():
+                par_gg=improper_dihedral_params[gg]
+                list_impro_dihedrals_params_to_print.append((gg,atom_i.GetIdx()+1,tri[0]+1,tri[1]+1,tri[2]+1,par_gg[0],par_gg[1],par_gg[2],par_gg[3])) 
             else:
                 continue
     else:
@@ -262,12 +286,20 @@ for atom_i in mol.GetAtoms():
                             if i_nghb.GetIdx() != atom_j.GetIdx():
                                 aa=f"{atom_assigned_types[i_nghb.GetIdx()]}-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[atom_j.GetIdx()]}-{atom_assigned_types[j_nghb.GetIdx()]}"
                                 bb=f"{atom_assigned_types[j_nghb.GetIdx()]}-{atom_assigned_types[atom_j.GetIdx()]}-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[i_nghb.GetIdx()]}"
+                                cc=f"X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[atom_j.GetIdx()]}-X"
+                                dd=f"X-{atom_assigned_types[atom_j.GetIdx()]}-{atom_assigned_types[atom_i.GetIdx()]}-X"
                                 if aa in dihedral_params.keys():
                                     par_aa=dihedral_params[aa]
-                                    list_dihedrals_params_to_print.append((aa,i_nghb.GetIdx()+1,atom_i.GetIdx()+1,atom_j.GetIdx()+1,j_nghb.GetIdx()+1,par_aa[0],par_aa[1],par_aa[2]))
+                                    list_dihedrals_params_to_print.append((aa,i_nghb.GetIdx()+1,atom_i.GetIdx()+1,atom_j.GetIdx()+1,j_nghb.GetIdx()+1,par_aa[0],par_aa[1],par_aa[2],par_aa[3]))
                                 elif bb in dihedral_params.keys():
                                     par_bb=dihedral_params[bb]
-                                    list_dihedrals_params_to_print.append((bb,j_nghb.GetIdx()+1,atom_j.GetIdx()+1,atom_i.GetIdx()+1,i_nghb.GetIdx()+1,par_bb[0],par_bb[1],par_bb[2]))
+                                    list_dihedrals_params_to_print.append((bb,j_nghb.GetIdx()+1,atom_j.GetIdx()+1,atom_i.GetIdx()+1,i_nghb.GetIdx()+1,par_bb[0],par_bb[1],par_bb[2],par_bb[3]))
+                                elif cc in dihedral_params.keys():
+                                    par_cc=dihedral_params[cc]
+                                    list_dihedrals_params_to_print.append((cc,j_nghb.GetIdx()+1,atom_j.GetIdx()+1,atom_i.GetIdx()+1,i_nghb.GetIdx()+1,par_cc[0],par_cc[1],par_cc[2],par_cc[3]))
+                                elif dd in dihedral_params.keys():
+                                    par_dd=dihedral_params[dd]
+                                    list_dihedrals_params_to_print.append((dd,j_nghb.GetIdx()+1,atom_j.GetIdx()+1,atom_i.GetIdx()+1,i_nghb.GetIdx()+1,par_dd[0],par_dd[1],par_dd[2],par_dd[3]))
                                 else:
                                     continue
                             else:
@@ -344,10 +376,10 @@ with open(file,"w+") as f:
     angles_df=pd.DataFrame(list_angle_params_to_print,columns=["Types","Idx1","Idx2","Idx3","th0","cth"],index=None)
     angles_df.to_csv(f,sep="\t",header=False,index=False)
     f.write(f"\n[ImproperDihedrals] {len(list_impro_dihedrals_params_to_print)}\n")
-    impdie_df=pd.DataFrame(list_impro_dihedrals_params_to_print,columns=["Types","Idx1","Idx2","Idx3","Idx4","phase","kd","pn"],index=None)
+    impdie_df=pd.DataFrame(list_impro_dihedrals_params_to_print,columns=["Types","Idx1","Idx2","Idx3","Idx4","div","phase","kd","pn"],index=None)
     impdie_df.to_csv(f,sep="\t",header=False,index=False)
     f.write(f"\n[Dihedrals] {len(list_dihedrals_params_to_print)}\n")
-    die_df=pd.DataFrame(list_dihedrals_params_to_print,columns=["Types","Idx1","Idx2","Idx3","Idx4","phase","kd","pn"],index=None)
+    die_df=pd.DataFrame(list_dihedrals_params_to_print,columns=["Types","Idx1","Idx2","Idx3","Idx4","div","phase","kd","pn"],index=None)
     die_df.to_csv(f,sep="\t",header=False,index=False)
     f.write(f"\n[LJ]\n")
     lj_df=pd.DataFrame(list_LJ_params_to_print,columns=["Idx","sigma","epsilon"],index=None)
