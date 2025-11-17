@@ -91,7 +91,14 @@ do
         read(line, *) dummy_idx, dummy_symb, atomtypes(count), mweights(count)
     elseif (inBondBlock) then
         count = count + 1 
-        read(line, *) 
+        read(line, *) bond_params(count,1), bond_params(count,2), bond_params(count,3), bond_params(count,4)
+    elseif (inAngleBlock) then
+        count = count + 1 
+        read(line, *) dummy_symb, angle_params(count,1), angle_params(count,2), angle_params(count,3), angle_params(count,4), angle_params(count,5)
+    elseif (inImpDieBlock) then
+        count = count + 1 
+        read(line, *) bond_params(count,1), bond_params(count,2), bond_params(count,3), bond_params(count,4)
+            
     end if
     
     

@@ -208,10 +208,10 @@ for atom_i in mol.GetAtoms():
     if len(atom_i.GetNeighbors()) >= 2:
         symbols=[]
         for i in atom_i.GetNeighbors():
-            symbols.append(atom_assigned_types[i.GetIdx()])
+            symbols.append(i.GetIdx())
         pairs = list(itertools.combinations(symbols, 2))
         for pair in pairs:
-           aa=f"{pair[0]}-{atom_assigned_types[atom_i.GetIdx()]}-{pair[1]}"
+           aa=f"{atom_assigned_types[pair[0]]}-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[pair[1]]}"
            par_aa=angle_params[aa]
            list_angle_params_to_print.append((aa,pair[0]+1,atom_i.GetIdx()+1,pair[1]+1,par_aa[0],par_aa[1])) 
     else:
@@ -229,10 +229,10 @@ for atom_i in mol.GetAtoms():
     if len(atom_i.GetNeighbors()) == 3:
         symbols=[]
         for i in atom_i.GetNeighbors():
-            symbols.append(atom_assigned_types[i.GetIdx()])
+            symbols.append(i.GetIdx())
         tris = list(itertools.permutations(symbols, 3))
         for tri in tris:
-            aa=f"{atom_assigned_types[atom_i.GetIdx()]}-{tri[0]}-{tri[1]}-{tri[2]}"
+            aa=f"{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[0]]}-{atom_assigned_types[tri[1]]}-{atom_assigned_types[tri[2]]}"
             if aa in improper_dihedral_params.keys():
                 par_aa=improper_dihedral_params[aa]
                 list_impro_dihedrals_params_to_print.append((aa,atom_i.GetIdx()+1,tri[0]+1,tri[1]+1,tri[2]+1,par_aa[0],par_aa[1],par_aa[2])) 
