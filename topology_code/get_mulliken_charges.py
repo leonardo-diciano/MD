@@ -11,6 +11,9 @@
 # python3 get_mulliken_charges.py -smi "CCC"
 # or with xyz file:
 # python3 get_mulliken_charges.py -xyz propane.xyz
+
+# or if you want to print the charges to an extra file: add the "-f" flag in the end for "file"
+# python3 get_mulliken_charges.py -smi "CCC" -f
 ################################################################
 
 import sys
@@ -201,4 +204,20 @@ if S.shape[0] != sum(nbf_on_A):
     print("WARNING: check no of basis functions, sth doesnt add up")
 
 
-print("\nMulliken charges: ",get_Mulliken_charge(CMO,S,n_occ,nbf_on_A, nel_on_A))
+charges = get_Mulliken_charge(CMO,S,n_occ,nbf_on_A, nel_on_A)
+
+# write to file
+if len(sys.argv) > 3:
+    if sys.argv[3] == '-f':
+        with open(sys.argv[2]+"_charges.txt","w") as file:        
+            file.write("[Charges]\n")
+            natom=0
+            for charge in charges:
+                natom +=1            
+                file.write("%3i     %16.12f\n"%(natom,charge))
+        file.close()
+        print("wrote Mulliken charges to %s"%(sys.argv[2]+"_charges.txt"))
+    else:
+        print("\nMulliken charges: ",charges)
+
+
