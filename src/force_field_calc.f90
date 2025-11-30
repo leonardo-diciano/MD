@@ -12,8 +12,8 @@ real, intent(in) :: mweights(n_atoms),positions(n_atoms,4),bond_params(n_bonds,4
 
 real, intent(out) :: tot_pot, forces(n_atoms,3)
 real :: pi, epsilon_0, bond_pot, distance, angle_pot, angle , dihedral, die_pot, imp_die_pot, coulomb_pot, lj_pot
-real :: AB(3), BC(3), f_magnitude, epsilon, sigma
-integer :: i, j, a1, a2, a3
+real :: AB(3), BC(3), CD(3), f_magnitude, epsilon, sigma,  angle_0, f1, f3
+integer :: i, j, a1, a2, a3, a4
 
 forces(:,:) = 0.0
 
@@ -45,12 +45,38 @@ do i=1, n_angles, 1
     AB = positions(a1,2:4) - positions(a2,2:4)
     BC = positions(a3,2:4) - positions(a2,2:4)
 
+    !  careful on radians conversion
     angle= acos(dot_product(AB,BC) / (SQRT(dot_product(AB,AB)) * SQRT(dot_product(BC,BC)))) * 180 / pi
+    angle_0=angle_params(i,4)*180/pi
+    f_magnitude=-2*angle_params(i,5)*(angle - angle_0)
+    f1 = f_magnitude * (1 / ( sin(angle) * SQRT(dot_product(AB,AB)) )) * &
+                    (cos(angle) * (AB/SQRT(dot_product(AB,AB))) - (BC/SQRT(dot_product(BC,BC))))
+    f3 = f_magnitude * (1 / ( sin(angle) * SQRT(dot_product(BC,BC)) )) * &
+                    (cos(angle) * (BC/SQRT(dot_product(BC,BC))) - (AB/SQRT(dot_product(AB,AB))))
+    forces(a1,1:3)= forces(a1,1:3) + f1
+    forces(a2,1:3)= forces(a2,1:3) - (f1+f3)
+    forces(a3,1:3)= forces(a3,1:3) + f3
 
-    angle_pot = angle_pot + 0.5 * angle_params(i,5) * (angle - angle_params(i,4))**2
+    angle_pot = angle_pot + 0.5 * angle_params(i,5) * (angle - angle_0)**2
 end do
 
 ! Dihedrals term
+
+do i=1, n_torsions, 1
+    a1 = int(tors_params(i,1))
+    a2 = int(tors_params(i,2))
+    a3 = int(tors_params(i,3))
+    a4 = int(tors_params(i,4))
+
+    AB = positions(a1,2:4) - positions(a2,2:4)
+    BC = positions(a2,2:4) - positions(a3,2:4)
+    CD = positions(a4,2:4) - positions(a3,2:4)
+
+    !  careful on radians conversion
+    ! add cross product function
+    angle= acos(- (dot_product((AB,BC)))/(SQRT()*SQRT()))
+
+end do
 
 ! Improper dihedrals term
 
@@ -104,3 +130,7 @@ end do
 ! Sum all terms to get the total potential
 tot_pot = bond_pot + angle_pot + die_pot + imp_die_pot + lj_pot + coulomb_pot
 end subroutine
+
+function cross_product()
+
+end function

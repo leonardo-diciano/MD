@@ -19,7 +19,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 import pandas as pd
 import numpy as np
-from force_field_data import atom_types, bond_params, angle_params, improper_dihedral_params, dihedral_params, LJ_params
+from force_field_data import mass_dict, bond_params, angle_params, improper_dihedral_params, dihedral_params, LJ_params
 import sys
 import itertools
 import warnings
@@ -32,11 +32,6 @@ import glob
 warnings.filterwarnings('ignore',category=FutureWarning)
 
 
-#Import atom types and MW from dict
-data=pd.DataFrame.from_dict(atom_types,orient='index',columns=["AtomType","MW"]) 
-atom_types=data["AtomType"].to_list() 
-atom_types=[x.strip() for x in atom_types]
-
 #SMILES or XYZ file run mode
 if sys.argv[1] == '-smi':
     mol=Chem.MolFromSmiles(sys.argv[2])
@@ -44,8 +39,7 @@ if sys.argv[1] == '-smi':
     AllChem.EmbedMolecule(mol)
 elif sys.argv[2] == '-xyz':
     mol=Chem.MolFromXYZFile(sys.argv[2])
-    mol=Chem.AddHs(mol)
-    AllChem.EmbedMolecule(mol)
+    print(Chem.MolToXYZBlock(mol))
 else:
     print("Use either the -xyz or -smi flag")
     exit
@@ -54,135 +48,29 @@ else:
 The assignment is generally based on combinations of type of neighbor atoms, 
 atoms hybridization and aromatic nature."""
 atom_assigned_types={} #dict with index and atom types
-list_atom_types_to_print=[] #list with tuples of atom idx (+1), symbol, type and MW
-for atom_i in mol.GetAtoms():
-    if atom_i.GetSymbol() == "C":
-        symbols=[]
-        for i in atom_i.GetNeighbors():
-            symbols.append(i.GetSymbol())
+list_atom_types_to_print = [None] * mol.GetNumAtoms()
 
-        if "O" in symbols and atom_i.GetHybridization() == "SP2":
-            atom_assigned_types[atom_i.GetIdx()]="C"
-            list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"C",
-                                                float(data["MW"][data["AtomType"]=="C"])))
-        elif atom_i.GetIsAromatic() == True or atom_i.GetHybridization() == "SP2":
-            atom_assigned_types[atom_i.GetIdx()]="CA"
-            list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"CA",
-                                                float(data["MW"][data["AtomType"]=="CA"])))
-        else:
-            atom_assigned_types[atom_i.GetIdx()]="CT"
-            list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"CT",
-                                                float(data["MW"][data["AtomType"]=="CT"])))
-        continue
-    elif atom_i.GetSymbol() == "H":
-        for nghb in atom_i.GetNeighbors():
-            if nghb.GetSymbol() == "C" and nghb.GetIsAromatic() == True:
-                atom_assigned_types[atom_i.GetIdx()]="HA"
-                list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"HA",
-                                                float(data["MW"][data["AtomType"]=="HA"])))
-            elif nghb.GetSymbol() == "C":
-                atom_assigned_types[atom_i.GetIdx()]="HC"
-                list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"HC",
-                                                float(data["MW"][data["AtomType"]=="HC"])))
-            elif nghb.GetSymbol() == "O":
-                atom_assigned_types[atom_i.GetIdx()]="HO"
-                list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"HO",
-                                                float(data["MW"][data["AtomType"]=="HO"])))
-            elif nghb.GetSymbol() == "N":
-                atom_assigned_types[atom_i.GetIdx()]="H"
-                list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"H",
-                                                float(data["MW"][data["AtomType"]=="H"])))    
-            elif nghb.GetSymbol() == "S":
-                atom_assigned_types[atom_i.GetIdx()]="HS"
-                list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"HS",
-                                                float(data["MW"][data["AtomType"]=="HS"])))
-        continue 
-    
-    elif atom_i.GetSymbol() == "N":
-        if len(atom_i.GetNeighbors()) == 2:
-            for nghb in atom_i.GetNeighbors():
-                if nghb.GetSymbol() == "H":
-                    continue
-                elif nghb.GetSymbol() == "C" and nghb.GetHybridization() == "SP2" and atom_i.GetHybridization() == "SP2" :
-                    atom_assigned_types[atom_i.GetIdx()]="N"
-                    list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"N",
-                                                    float(data["MW"][data["AtomType"]=="N"]))) 
-                else :
-                    atom_assigned_types[atom_i.GetIdx()]="N*"
-                    list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"N*",
-                                                    float(data["MW"][data["AtomType"]=="N*"]))) 
-        elif len(atom_i.GetNeighbors()) == 3:
-            for nghb in atom_i.GetNeighbors():
-                if nghb.GetSymbol() == "H":
-                    continue
-                elif nghb.GetSymbol() == "C" and atom_i.GetHybridization() == "SP2" :
-                    atom_assigned_types[atom_i.GetIdx()]="N2"
-                    list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"N2",
-                                                    float(data["MW"][data["AtomType"]=="N2"])))
-                else:
-                    atom_assigned_types[atom_i.GetIdx()]="N*"
-                    list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"N*",
-                                                    float(data["MW"][data["AtomType"]=="N*"])))
-        elif len(atom_i.GetNeighbors()) == 4:
-            atom_assigned_types[atom_i.GetIdx()]="N3"
-            list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"N3",
-                                            float(data["MW"][data["AtomType"]=="N3"])))
-        else:
-            atom_assigned_types[atom_i.GetIdx()]="N*"
-            list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"N*",
-                                            float(data["MW"][data["AtomType"]=="N*"])))
-        continue
-    elif atom_i.GetSymbol() == "O":
-        if len(atom_i.GetNeighbors()) == 1:
-            for nghb in atom_i.GetNeighbors():
-                if nghb.GetSymbol() == "H":
-                    atom_assigned_types[atom_i.GetIdx()]="OH"
-                    list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"OH",
-                                                    float(data["MW"][data["AtomType"]=="OH"]))) 
-                elif nghb.GetSymbol() == "C" and atom_i.GetFormalCharge() == -1:
-                    atom_assigned_types[atom_i.GetIdx()]="O2"
-                    list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"O2",
-                                                    float(data["MW"][data["AtomType"]=="O2"]))) 
-                elif nghb.GetSymbol() == "C" and nghb.GetHybridization() == "SP2":
-                    atom_assigned_types[atom_i.GetIdx()]="O"
-                    list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"O",
-                                                    float(data["MW"][data["AtomType"]=="O"]))) 
-                else :
-                    atom_assigned_types[atom_i.GetIdx()]="OP"
-                    list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"OP",
-                                                    float(data["MW"][data["AtomType"]=="OP"]))) 
-        elif len(atom_i.GetNeighbors()) == 2:
-            nghb1=atom_i.GetNeighbors()[0]
-            nghb2=atom_i.GetNeighbors()[1]
-            if nghb1.GetSymbol() == "H" or nghb2.GetSymbol() == "H":
-                atom_assigned_types[atom_i.GetIdx()]="OH"
-                list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"OH",
-                                                float(data["MW"][data["AtomType"]=="OH"])))
-            elif nghb1.GetSymbol() == "C" or nghb2.GetSymbol() == "C":
-                atom_assigned_types[atom_i.GetIdx()]="OS"
-                list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"OS",
-                                                float(data["MW"][data["AtomType"]=="OS"])))
-            else :
-                atom_assigned_types[atom_i.GetIdx()]="OP"
-                list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"OP",
-                                                float(data["MW"][data["AtomType"]=="OP"])))
-        continue 
-    elif atom_i.GetSymbol() == "S":
-        for nghb in atom_i.GetNeighbors():
-            if nghb.GetSymbol() == "H":
-                atom_assigned_types[atom_i.GetIdx()]="SH"
-                list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"SH",
-                                                float(data["MW"][data["AtomType"]=="SH"])))
-            else:
-                atom_assigned_types[atom_i.GetIdx()]="S"
-                list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),"S",
-                                                float(data["MW"][data["AtomType"]=="S"])))
-        continue
-    else:
-        atom_assigned_types[atom_i.GetIdx()]=atom_i.GetSymbol()
-        list_atom_types_to_print.append((atom_i.GetIdx()+1,atom_i.GetSymbol(),atom_i.GetSymbol(),
-                                         float(data["MW"][data["AtomType"]==atom_i.GetSymbol()])))
-        continue
+typer_data=pd.read_csv("atom_types.ff",sep='\s+',header=None,names=["atom","smarts","type","notes"])
+data1=typer_data["smarts"].to_list()
+data2=typer_data["type"].to_list()
+smarts_to_type = { data1[i] : data2[i] for i in range(len(data2)) }
+smarts_to_type_sorted = dict(
+    sorted(smarts_to_type.items(), key=lambda x: -len(x[0]))
+)
+for smarts, atom_type in smarts_to_type_sorted.items():
+    pattern = Chem.MolFromSmarts(smarts)
+    if pattern is None:
+        raise ValueError(f"Invalid SMARTS: {smarts}")
+    matches = mol.GetSubstructMatches(pattern)
+    for match in matches:
+        for atom_idx in match:
+            symb=mol.GetAtomWithIdx(atom_idx).GetSymbol()
+            if symb[0] == atom_type.capitalize()[0]: #Check that is the correct element 
+                if list_atom_types_to_print[atom_idx] is None:
+                    list_atom_types_to_print[atom_idx] = [atom_idx + 1,symb, atom_type, float(mass_dict[symb])]
+                    atom_assigned_types[atom_idx]=atom_type
+
+
 
 print(f"Atom Types summary\n",list_atom_types_to_print)
 
@@ -271,6 +159,7 @@ Assigned by iterating over the neigbors(nghb) of the first (i) and second (j) ce
 until obtaining a i_nghb-i-j-j_nghb or j_nghb-j-i-i_nghb combination that matches one of the 
 force_field_data library entries."""
 list_dihedrals_params_to_print=[]
+quartet_list=[]
 for atom_i in mol.GetAtoms():
     neighbors=atom_i.GetNeighbors()
     if len(neighbors) < 2:
@@ -285,21 +174,22 @@ for atom_i in mol.GetAtoms():
                         for i_nghb in neighbors:
                             if i_nghb.GetIdx() != atom_j.GetIdx():
                                 aa=f"{atom_assigned_types[i_nghb.GetIdx()]}-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[atom_j.GetIdx()]}-{atom_assigned_types[j_nghb.GetIdx()]}"
-                                bb=f"{atom_assigned_types[j_nghb.GetIdx()]}-{atom_assigned_types[atom_j.GetIdx()]}-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[i_nghb.GetIdx()]}"
                                 cc=f"X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[atom_j.GetIdx()]}-X"
-                                dd=f"X-{atom_assigned_types[atom_j.GetIdx()]}-{atom_assigned_types[atom_i.GetIdx()]}-X"
-                                if aa in dihedral_params.keys():
-                                    par_aa=dihedral_params[aa]
-                                    list_dihedrals_params_to_print.append((aa,i_nghb.GetIdx()+1,atom_i.GetIdx()+1,atom_j.GetIdx()+1,j_nghb.GetIdx()+1,par_aa[0],par_aa[1],par_aa[2],par_aa[3]))
-                                elif bb in dihedral_params.keys():
-                                    par_bb=dihedral_params[bb]
-                                    list_dihedrals_params_to_print.append((bb,j_nghb.GetIdx()+1,atom_j.GetIdx()+1,atom_i.GetIdx()+1,i_nghb.GetIdx()+1,par_bb[0],par_bb[1],par_bb[2],par_bb[3]))
-                                elif cc in dihedral_params.keys():
-                                    par_cc=dihedral_params[cc]
-                                    list_dihedrals_params_to_print.append((cc,j_nghb.GetIdx()+1,atom_j.GetIdx()+1,atom_i.GetIdx()+1,i_nghb.GetIdx()+1,par_cc[0],par_cc[1],par_cc[2],par_cc[3]))
-                                elif dd in dihedral_params.keys():
-                                    par_dd=dihedral_params[dd]
-                                    list_dihedrals_params_to_print.append((dd,j_nghb.GetIdx()+1,atom_j.GetIdx()+1,atom_i.GetIdx()+1,i_nghb.GetIdx()+1,par_dd[0],par_dd[1],par_dd[2],par_dd[3]))
+                                if not [i_nghb.GetIdx(),atom_i.GetIdx(),atom_j.GetIdx(),j_nghb.GetIdx()] in quartet_list:
+                                    if aa in dihedral_params.keys() :
+                                        params_aa=dihedral_params[aa]
+                                        quartet_list.append([i_nghb.GetIdx(),atom_i.GetIdx(),atom_j.GetIdx(),j_nghb.GetIdx()])
+                                        quartet_list.append([j_nghb.GetIdx(),atom_j.GetIdx(),atom_i.GetIdx(),i_nghb.GetIdx()])
+                                        for par_aa in params_aa:
+                                            list_dihedrals_params_to_print.append((aa,i_nghb.GetIdx()+1,atom_i.GetIdx()+1,atom_j.GetIdx()+1,j_nghb.GetIdx()+1,par_aa[0],par_aa[1],par_aa[2],par_aa[3]))
+                                    elif cc in dihedral_params.keys():
+                                        params_cc=dihedral_params[cc]
+                                        quartet_list.append([i_nghb.GetIdx(),atom_i.GetIdx(),atom_j.GetIdx(),j_nghb.GetIdx()])
+                                        quartet_list.append([j_nghb.GetIdx(),atom_j.GetIdx(),atom_i.GetIdx(),i_nghb.GetIdx()])
+                                        for par_cc in params_cc:
+                                            list_dihedrals_params_to_print.append((cc,j_nghb.GetIdx()+1,atom_j.GetIdx()+1,atom_i.GetIdx()+1,i_nghb.GetIdx()+1,par_cc[0],par_cc[1],par_cc[2],par_cc[3]))
+                                    else:
+                                        continue
                                 else:
                                     continue
                             else:
@@ -330,6 +220,7 @@ list_resp_charges_to_print=[]
 print("Calculating RESP Charges with Psi4's RESP plugin")
 psi_mol = psi4.geometry(Chem.MolToXYZBlock(mol))
 psi_mol.update_geometry()
+psi4.set_options( {'basis': '6-31G'})
 options = {'VDW_SCALE_FACTORS'  : [1.4, 1.6, 1.8, 2.0],
            'VDW_POINT_DENSITY'  : 1.0,
            'RESP_A'             : 0.0005,
@@ -338,7 +229,7 @@ options = {'VDW_SCALE_FACTORS'  : [1.4, 1.6, 1.8, 2.0],
 # Call for first stage fit
 charges1 = resp.resp([psi_mol], options)
 # Change the value of the RESP parameter A
-options['RESP_A'] = 0.001
+options['RESP_A'] = 0.0001
 # Add constraint for atoms fixed in second stage fit
 constraint_charge = []
 for i in range(4, 8):
@@ -368,24 +259,27 @@ else:
 with open(file,"w+") as f:
     f.write(f"[AtomTypes] {len(list_atom_types_to_print)}\n")
     types_df=pd.DataFrame(list_atom_types_to_print,columns=["Idx","Symb","Type","MW"],index=None)
-    types_df.to_csv(f,sep="\t",header=False,index=False)
+    types_df.to_csv(f,sep="\t",header=False,index=False,escapechar=None)
     f.write(f"\n[Bonds] {len(list_bond_params_to_print)}\n")
     bonds_df=pd.DataFrame(list_bond_params_to_print,columns=["Idx1","Idx2","b0","kb"],index=None)
-    bonds_df.to_csv(f,sep="\t",header=False,index=False)
+    bonds_df.to_csv(f,sep="\t",header=False,index=False,escapechar=None)
     f.write(f"\n[Angles] {len(list_angle_params_to_print)}\n")
     angles_df=pd.DataFrame(list_angle_params_to_print,columns=["Types","Idx1","Idx2","Idx3","th0","cth"],index=None)
-    angles_df.to_csv(f,sep="\t",header=False,index=False)
+    angles_df.to_csv(f,sep="\t",header=False,index=False,escapechar=None)
     f.write(f"\n[ImproperDihedrals] {len(list_impro_dihedrals_params_to_print)}\n")
     impdie_df=pd.DataFrame(list_impro_dihedrals_params_to_print,columns=["Types","Idx1","Idx2","Idx3","Idx4","div","phase","kd","pn"],index=None)
-    impdie_df.to_csv(f,sep="\t",header=False,index=False)
+    impdie_df.to_csv(f,sep="\t",header=False,index=False,escapechar=None)
     f.write(f"\n[Dihedrals] {len(list_dihedrals_params_to_print)}\n")
     die_df=pd.DataFrame(list_dihedrals_params_to_print,columns=["Types","Idx1","Idx2","Idx3","Idx4","div","phase","kd","pn"],index=None)
-    die_df.to_csv(f,sep="\t",header=False,index=False)
+    die_df.to_csv(f,sep="\t",header=False,index=False,escapechar=None)
     f.write(f"\n[LJ]\n")
     lj_df=pd.DataFrame(list_LJ_params_to_print,columns=["Idx","sigma","epsilon"],index=None)
-    lj_df.to_csv(f,sep="\t",header=False,index=False,float_format='%.5f')
+    lj_df.to_csv(f,sep="\t",header=False,index=False,float_format='%.5f',escapechar=None)
     f.write(f"\n[Charges]\n")
     chg_df=pd.DataFrame(list_resp_charges_to_print,columns=["Idx","charge"],index=None)
-    chg_df.to_csv(f,sep="\t",header=False,index=False,float_format='%.3f')
+    chg_df.to_csv(f,sep="\t",header=False,index=False,float_format='%.3f',escapechar=None)
     f.write(f" ")
 print(f"Topology file written in {file}")
+
+Chem.MolToXYZFile(mol,"coord.xyz")
+print(f"XYZ coordinates written in coord.xyz")
