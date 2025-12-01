@@ -4,7 +4,7 @@ XYZ (python get_topology.py -xyz coord_file.xyz output_filename.top), it assigns
 according to definitions in force_field_data.py. Then, it proceeds to scan all the molecule bonds,
 angles, proper and improper dihedral to assign the corresponding parameters to each and store them in lists. 
 It also assigns parameteres for Lennard-Jones potential and it calculates the RESP charges for each
-atom at HF/STO-3G level using psi4 and its resp plugin. Finally, the whole set of parameters needed for the 
+atom at HF/6-31G level using psi4 and its resp plugin. Finally, the whole set of parameters needed for the 
 chosen molecule are printed in a *.top file, ordered by type of interaction.
 
 The atom types are a reduced version of AMBER14sb_parmbsc1, as well as all parameters and are taken from:
@@ -50,7 +50,7 @@ atoms hybridization and aromatic nature."""
 atom_assigned_types={} #dict with index and atom types
 list_atom_types_to_print = [None] * mol.GetNumAtoms()
 
-typer_data=pd.read_csv("atom_types.ff",sep='\s+',header=None,names=["atom","smarts","type","notes"])
+typer_data=pd.read_csv("FF_csv/atom_types.ff",sep='\s+',header=None,names=["atom","smarts","type","notes"])
 data1=typer_data["smarts"].to_list()
 data2=typer_data["type"].to_list()
 smarts_to_type = { data1[i] : data2[i] for i in range(len(data2)) }
@@ -220,11 +220,14 @@ list_resp_charges_to_print=[]
 print("Calculating RESP Charges with Psi4's RESP plugin")
 psi_mol = psi4.geometry(Chem.MolToXYZBlock(mol))
 psi_mol.update_geometry()
-psi4.set_options( {'basis': '6-31G'})
-options = {'VDW_SCALE_FACTORS'  : [1.4, 1.6, 1.8, 2.0],
+options = {'VDW_SCALE_FACTORS' : [1.4, 1.6, 1.8, 2.0],
            'VDW_POINT_DENSITY'  : 1.0,
            'RESP_A'             : 0.0005,
            'RESP_B'             : 0.1,
+           'RESTRAINT'          : True,
+           'IHFREE'             : False,
+           'WEIGHT'             : [1, 1, 1],
+           'BASIS_ESP'          : "STO-3G"
            }
 # Call for first stage fit
 charges1 = resp.resp([psi_mol], options)
@@ -232,10 +235,10 @@ charges1 = resp.resp([psi_mol], options)
 options['RESP_A'] = 0.0001
 # Add constraint for atoms fixed in second stage fit
 constraint_charge = []
-for i in range(4, 8):
+for i in range(len(charges1)):
     constraint_charge.append([charges1[1][i], [i+1]])
 options['constraint_charge'] = constraint_charge
-options['constraint_group'] = [[2, 3, 4]]
+options['constraint_group'] = [[1,3,],[4,5,6,9,10,11]]
 options['grid'] = ['1_%s_grid.dat' %psi_mol.name()]
 options['esp'] = ['1_%s_grid_esp.dat' %psi_mol.name()]
 # Call for second stage fit
@@ -253,7 +256,7 @@ print('RESP Charges Summary:',list_resp_charges_to_print)
 """The parameters are assembled with all the stored components and
 written in a *.top file"""
 if sys.argv[3]:
-    file=sys.argv[3]
+    file=f"{sys.argv[3]}.top"
 else:
     file="topology.top"
 with open(file,"w+") as f:
@@ -281,5 +284,14 @@ with open(file,"w+") as f:
     f.write(f" ")
 print(f"Topology file written in {file}")
 
-Chem.MolToXYZFile(mol,"coord.xyz")
-print(f"XYZ coordinates written in coord.xyz")
+if sys.argv[2] == "-smi":
+    if sys.argv[3]:
+        filename=f"{sys.argv[3]}.xyz"
+    else:
+        filename="coord.xyz"
+    Chem.MolToXYZFile(mol,filename)
+    print(f"XYZ coordinates written in {filename}")
+else:
+    pass
+
+

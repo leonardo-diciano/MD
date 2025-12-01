@@ -5563,7 +5563,7 @@ dihedral_params={'X-c-c-X': [[np.int64(4), np.float64(1.2), np.float64(180.0), n
 'hc-c3-c3-cl': [[np.int64(1), np.float64(0.0), np.float64(0.0), np.float64(-3.0)], [np.int64(1), np.float64(0.25), np.float64(0.0), np.float64(1.0)]],
 'hc-c3-c3-br': [[np.int64(1), np.float64(0.0), np.float64(0.0), np.float64(-3.0)], [np.int64(1), np.float64(0.55), np.float64(0.0), np.float64(1.0)]],}
 
-# lennard jones key - Rmin - epsilon
+# lennard jones key - Rmin in Å - epsilon in kcal/mol
 LJ_params={'h1': [np.float64(1.387), np.float64(0.0157), 'Veenstra_et_al_JCC,8,(1992),963'],
 'h2': [np.float64(1.287), np.float64(0.0157), 'Veenstra_et_al_JCC,8,(1992),963'],
 'h3': [np.float64(1.187), np.float64(0.0157), 'Veenstra_et_al_JCC,8,(1992),963'],
