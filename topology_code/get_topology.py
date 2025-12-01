@@ -1,17 +1,17 @@
 """Atom Typer and Topology File Generator
-Starting from SMILES (python get_topology.py -smi 'SMILES' output_filename.top) or
-XYZ (python get_topology.py -xyz coord_file.xyz output_filename.top), it assigns the atom types
-according to definitions in force_field_data.py. Then, it proceeds to scan all the molecule bonds,
+Starting from SMILES (python get_topology.py -smi 'SMILES' output_filename) or
+PDB file (python get_topology.py -pdb coord_file.pdb output_filename), it assigns the atom types
+according to predefined SMARTS patterns. Then, it proceeds to scan all the molecule bonds,
 angles, proper and improper dihedral to assign the corresponding parameters to each and store them in lists. 
 It also assigns parameteres for Lennard-Jones potential and it calculates the RESP charges for each
 atom at HF/6-31G level using psi4 and its resp plugin. Finally, the whole set of parameters needed for the 
-chosen molecule are printed in a *.top file, ordered by type of interaction.
+chosen molecule are printed in a *.top file, ordered by type of interaction, and the XYZ coordinates are saved
+into *.xyz file.
 
-The atom types are a reduced version of AMBER14sb_parmbsc1, as well as all parameters and are taken from:
-https://github.com/intbio/gromacs_ff/tree/master/amber14sb_parmbsc1_opc_lmi.ff .
+The atom types are taken from GAFF.
 
 In the output file, atoms' index count starts at 1, instead of 0, to improve compatibility with Fortran scripts.
-Example: python get_topology.py -smi 'c1ccccc1' 'benzene.top'
+Example: python get_topology.py -smi 'c1ccccc1' benzene
 
 Author: Leonardo Di Ciano (2025)"""
 
@@ -27,22 +27,40 @@ import psi4
 import resp
 import os
 import glob
+import argparse
+import ast
 
+parser=argparse.ArgumentParser(prog="Topology file generator")
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument("-s","--smi", type=str, help="Input SMILES string")
+group.add_argument("-p","--pdb", type=str, help="Input PDB file path")
+parser.add_argument('-o','--output',type=str,metavar='filename',help=f"Give the name for topology and XYZ coordinate file")
+parser.add_argument('-c','--constraints',type=str,metavar=None,help=f"Give a list of constrained groups of atoms for RESP charges calculation, i.e. '[[1,2,][3,4,5,6,7,8]]' for ethane")
+args=parser.parse_args()
+
+constraints = None
+if args.constraints:
+    try:
+        constraints = ast.literal_eval(args.constraints)
+    except:
+        pass
+     
 #Avoid pandas FutureWarnings
 warnings.filterwarnings('ignore',category=FutureWarning)
-
+warnings.filterwarnings('ignore',category=SyntaxWarning)
 
 #SMILES or XYZ file run mode
-if sys.argv[1] == '-smi':
+if args.smi :
     mol=Chem.MolFromSmiles(sys.argv[2])
     mol=Chem.AddHs(mol)
     AllChem.EmbedMolecule(mol)
-elif sys.argv[2] == '-xyz':
-    mol=Chem.MolFromXYZFile(sys.argv[2])
-    print(Chem.MolToXYZBlock(mol))
+elif args.pdb:
+    mol=Chem.MolFromPDBFile(sys.argv[2])
+    AllChem.SanitizeMol(mol)
+    mol=Chem.AddHs(mol)
+    AllChem.EmbedMolecule(mol)
 else:
-    print("Use either the -xyz or -smi flag")
-    exit
+    raise KeyError
 
 """Atom Types Definition
 The assignment is generally based on combinations of type of neighbor atoms, 
@@ -174,6 +192,7 @@ for atom_i in mol.GetAtoms():
                         for i_nghb in neighbors:
                             if i_nghb.GetIdx() != atom_j.GetIdx():
                                 aa=f"{atom_assigned_types[i_nghb.GetIdx()]}-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[atom_j.GetIdx()]}-{atom_assigned_types[j_nghb.GetIdx()]}"
+                                bb=f"{atom_assigned_types[j_nghb.GetIdx()]}-{atom_assigned_types[atom_j.GetIdx()]}-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[i_nghb.GetIdx()]}"
                                 cc=f"X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[atom_j.GetIdx()]}-X"
                                 if not [i_nghb.GetIdx(),atom_i.GetIdx(),atom_j.GetIdx(),j_nghb.GetIdx()] in quartet_list:
                                     if aa in dihedral_params.keys() :
@@ -182,6 +201,12 @@ for atom_i in mol.GetAtoms():
                                         quartet_list.append([j_nghb.GetIdx(),atom_j.GetIdx(),atom_i.GetIdx(),i_nghb.GetIdx()])
                                         for par_aa in params_aa:
                                             list_dihedrals_params_to_print.append((aa,i_nghb.GetIdx()+1,atom_i.GetIdx()+1,atom_j.GetIdx()+1,j_nghb.GetIdx()+1,par_aa[0],par_aa[1],par_aa[2],par_aa[3]))
+                                    elif bb in dihedral_params.keys() :
+                                        params_bb=dihedral_params[bb]
+                                        quartet_list.append([i_nghb.GetIdx(),atom_i.GetIdx(),atom_j.GetIdx(),j_nghb.GetIdx()])
+                                        quartet_list.append([j_nghb.GetIdx(),atom_j.GetIdx(),atom_i.GetIdx(),i_nghb.GetIdx()])
+                                        for par_bb in params_bb:
+                                            list_dihedrals_params_to_print.append((bb,j_nghb.GetIdx()+1,atom_j.GetIdx()+1,atom_i.GetIdx()+1,i_nghb.GetIdx()+1,par_bb[0],par_bb[1],par_bb[2],par_bb[3]))
                                     elif cc in dihedral_params.keys():
                                         params_cc=dihedral_params[cc]
                                         quartet_list.append([i_nghb.GetIdx(),atom_i.GetIdx(),atom_j.GetIdx(),j_nghb.GetIdx()])
@@ -220,6 +245,7 @@ list_resp_charges_to_print=[]
 print("Calculating RESP Charges with Psi4's RESP plugin")
 psi_mol = psi4.geometry(Chem.MolToXYZBlock(mol))
 psi_mol.update_geometry()
+psi4.core.set_output_file('output.dat', False)
 options = {'VDW_SCALE_FACTORS' : [1.4, 1.6, 1.8, 2.0],
            'VDW_POINT_DENSITY'  : 1.0,
            'RESP_A'             : 0.0005,
@@ -238,7 +264,7 @@ constraint_charge = []
 for i in range(len(charges1)):
     constraint_charge.append([charges1[1][i], [i+1]])
 options['constraint_charge'] = constraint_charge
-options['constraint_group'] = [[1,3,],[4,5,6,9,10,11]]
+options['constraint_group'] = constraints
 options['grid'] = ['1_%s_grid.dat' %psi_mol.name()]
 options['esp'] = ['1_%s_grid_esp.dat' %psi_mol.name()]
 # Call for second stage fit
@@ -255,8 +281,8 @@ print('RESP Charges Summary:',list_resp_charges_to_print)
 
 """The parameters are assembled with all the stored components and
 written in a *.top file"""
-if sys.argv[3]:
-    file=f"{sys.argv[3]}.top"
+if args.output:
+    file=f"{args.output}.top"
 else:
     file="topology.top"
 with open(file,"w+") as f:
@@ -284,14 +310,13 @@ with open(file,"w+") as f:
     f.write(f" ")
 print(f"Topology file written in {file}")
 
-if sys.argv[2] == "-smi":
-    if sys.argv[3]:
-        filename=f"{sys.argv[3]}.xyz"
-    else:
-        filename="coord.xyz"
-    Chem.MolToXYZFile(mol,filename)
-    print(f"XYZ coordinates written in {filename}")
+
+
+if args.output:
+    filename=f"{args.output}.xyz"
 else:
-    pass
+    filename="coord.xyz"
+Chem.MolToXYZFile(mol,filename)
+print(f"XYZ coordinates written in {filename}")
 
 
