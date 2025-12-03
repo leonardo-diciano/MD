@@ -1,17 +1,18 @@
 """Atom Typer and Topology File Generator
-Starting from SMILES (python get_topology.py -smi 'SMILES' output_filename) or
-PDB file (python get_topology.py -pdb coord_file.pdb output_filename), it assigns the atom types
+Starting from SMILES (python get_topology.py -s/--smi'SMILES' -o/--output output_filename) or
+PDB file (python get_topology.py -p/--pdb coord_file.pdb -o/--output output_filename), it assigns the atom types
 according to predefined SMARTS patterns. Then, it proceeds to scan all the molecule bonds,
 angles, proper and improper dihedral to assign the corresponding parameters to each and store them in lists. 
 It also assigns parameteres for Lennard-Jones potential and it calculates the RESP charges for each
-atom at HF/6-31G level using psi4 and its resp plugin. Finally, the whole set of parameters needed for the 
+atom at HF/STO-3G level using psi4 and its resp plugin. Constrains in the RESP calculation may be given with the input
+flag -c/--constraints Finally, the whole set of parameters needed for the 
 chosen molecule are printed in a *.top file, ordered by type of interaction, and the XYZ coordinates are saved
-into *.xyz file.
+into *.xyz file. 
 
 The atom types are taken from GAFF.
 
 In the output file, atoms' index count starts at 1, instead of 0, to improve compatibility with Fortran scripts.
-Example: python get_topology.py -smi 'c1ccccc1' benzene
+Example: python get_topology.py --smi 'c1ccccc1' -o benzene
 
 Author: Leonardo Di Ciano (2025)"""
 
@@ -129,6 +130,7 @@ print(f"Angles summary\n",list_angle_params_to_print)
 Assigned by iterating over the possible combinations of a central atom and three *different* neighbors,
 itertools.permutations allows repetitions, in order to get a correctly ordered set to grep from the 
 force_field_data library"""
+quartet_list=[]
 list_impro_dihedrals_params_to_print=[]
 for atom_i in mol.GetAtoms():
     neighbors=atom_i.GetNeighbors()
@@ -138,16 +140,17 @@ for atom_i in mol.GetAtoms():
             symbols.append(i.GetIdx())
         tris = list(itertools.permutations(symbols, 3))
         for tri in tris:
-            aa=f"{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[0]]}-{atom_assigned_types[tri[1]]}-{atom_assigned_types[tri[2]]}"
-            bb=f"X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[0]]}-{atom_assigned_types[tri[1]]}"
-            cc=f"X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[1]]}-{atom_assigned_types[tri[2]]}"
-            dd=f"X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[0]]}-{atom_assigned_types[tri[2]]}"
+            aa=f"{atom_assigned_types[tri[0]]}-{atom_assigned_types[tri[1]]}-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[2]]}"
+            bb=f"X-{atom_assigned_types[tri[0]]}-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[1]]}"
+            cc=f"X-{atom_assigned_types[tri[1]]}-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[2]]}"
+            dd=f"X-{atom_assigned_types[tri[0]]}-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[2]]}"
             ee=f"X-X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[0]]}"
             ff=f"X-X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[1]]}"
             gg=f"X-X-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[tri[2]]}"
             if aa in improper_dihedral_params.keys():
                 par_aa=improper_dihedral_params[aa]
                 list_impro_dihedrals_params_to_print.append((aa,atom_i.GetIdx()+1,tri[0]+1,tri[1]+1,tri[2]+1,par_aa[0],par_aa[1],par_aa[2],par_aa[3])) 
+                quartet_list.extend(itertools.permutations([tri[0], tri[1], atom_i.GetIdx(), tri[2]], 4))
             elif bb in improper_dihedral_params.keys():
                 par_bb=improper_dihedral_params[bb]
                 list_impro_dihedrals_params_to_print.append((bb,atom_i.GetIdx()+1,tri[0]+1,tri[1]+1,tri[2]+1,par_bb[0],par_bb[1],par_bb[2],par_bb[3])) 
