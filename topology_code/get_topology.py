@@ -267,7 +267,8 @@ constraint_charge = []
 for i in range(len(charges1)):
     constraint_charge.append([charges1[1][i], [i+1]])
 options['constraint_charge'] = constraint_charge
-options['constraint_group'] = constraints
+if constraints:
+    options['constraint_group'] = constraints
 options['grid'] = ['1_%s_grid.dat' %psi_mol.name()]
 options['esp'] = ['1_%s_grid_esp.dat' %psi_mol.name()]
 # Call for second stage fit
