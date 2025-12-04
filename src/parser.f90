@@ -19,9 +19,10 @@ real, allocatable, intent(out) :: mweights(:),positions(:,:),bond_params(:,:),an
                                     tors_params(:,:),lj_params(:,:), resp_charges(:,:)
 character(len=256) :: line
 logical :: inAtomBlock,inBondBlock,inAngleBlock,inImpDieBlock, inDieBlock, inLJBlock, inChgBlock 
-integer :: count, dummy_idx, io
+integer :: count, dummy_idx, io, i
 character(len=256) :: dummy_symb
 
+! Initialize the block flags
 inAtomBlock = .false.
 inBondBlock = .false.
 inAngleBlock = .false.
@@ -30,10 +31,12 @@ inDieBlock = .false.
 inLJBlock = .false. 
 inChgBlock = .false.
 
+! Open topology file
 open(unit=10,file=topofile,status='old',access='sequential',action='read')
 
 if (debug_flag) then
-    write(*,*) "Parsing the input files"
+    write(*,*) ""
+    write(*,*) "Parsing the topology file"
 end if
 
 do
@@ -60,7 +63,7 @@ do
         count=0
 
         if (debug_flag) then
-            write(*,*) "Reading ", n_bonds ," Bonds"       
+            write(*,*) "Reading ", n_bonds ," bonds terms"       
         end if
 
         cycle
@@ -72,7 +75,7 @@ do
         count=0
         
         if (debug_flag) then
-            write(*,*) "Reading ", n_angles ," Angles"       
+            write(*,*) "Reading ", n_angles ," angle terms"       
         end if
         
         cycle
@@ -88,7 +91,7 @@ do
         count=0
         
         if (debug_flag) then
-            write(*,*) "Reading ", n_impdie ," Improper Dihedrals"       
+            write(*,*) "Reading ", n_impdie ," improper dihedral terms"       
         end if
 
         cycle
@@ -96,7 +99,6 @@ do
     elseif (index(line,'[Dihedrals]') == 1) then !Starting Block [Dihedrals]
         inDieBlock = .true.
         read(line, *) dummy_symb, n_torsions
-        write(*,*) dummy_symb, n_torsions
         if (n_torsions == 0 ) then
             allocate(tors_params(0,8))
         else
@@ -105,7 +107,7 @@ do
         count=0
 
         if (debug_flag) then
-            write(*,*) "Reading ", n_torsions ," Dihedrals"       
+            write(*,*) "Reading ", n_torsions ," dihedral terms"       
         end if
 
         cycle
@@ -116,7 +118,7 @@ do
         allocate(lj_params(n_atoms,3))
         
         if (debug_flag) then
-            write(*,*) "Reading ", n_atoms ," LJ Params"       
+            write(*,*) "Reading ", n_atoms ," LJ parameters"       
         end if
 
         cycle
@@ -127,7 +129,7 @@ do
         allocate(resp_charges(n_atoms,2))
         
         if (debug_flag) then
-            write(*,*) "Reading ", n_atoms ," Partial Charges"       
+            write(*,*) "Reading ", n_atoms ," partial charges"       
         end if
 
         cycle
@@ -176,11 +178,24 @@ do
 end do
 close(10)
 
+if (debug_flag) then
+    write(*,*) ""
+    write(*,*) "Parsing the topology file - Done"
+    write(*,*) "Summary of stored data sizes: "
+    write(*,FMT='( "Bond parameters: ", I4," rows ",I4," cols")') size(bond_params,1),size(bond_params,2)
+    write(*,FMT='( "Angle parameters: ", I4," rows ",I4," cols")') size(angle_params,1),size(angle_params,2)
+    write(*,FMT='( "Dihedrals parameters: ", I4," rows ",I4," cols")') size(tors_params,1),size(tors_params,2)
+    write(*,FMT='( "Improper dihedrals parameters: ", I4," rows ",I4," cols")') size(impdihedrals_params,1),& 
+                    size(impdihedrals_params,2)
+    write(*,FMT='( "LJ parameters: ", I4," rows ",I4," cols")') size(lj_params,1),size(lj_params,2)
+end if
+
 ! now parsing the XYZ file
 open(unit=11,file=xyzfile,status='old',access='sequential',action='read')
 allocate(positions(n_atoms,3))
 
 if (debug_flag) then
+    write(*,*) ""
     write(*,*) "Reading XYZ coordinates"       
 end if
 
@@ -199,7 +214,19 @@ do
     end if
 end do
 close(11)
+if (debug_flag) then
+    write(*,*) "Reading XYZ coordinates - Done"       
+end if
 
+! Write output
+write(*,*)""
+write(*,*)"Parsing of input files completed"
+write(*,*)""
+write(*,*) "Atom Types and XYZ coordinates (Å)"
+write(*,FMT='("Index",2X,"Atom Type",8X,"X",15X,"Y",15X,"Z")')
+do i=1, size(positions,1), 1
+    write(*,FMT='(I3,5X,A2,2X,F15.6,2X,F15.6,2X,F15.6)') i, atomtypes(i),positions(i,1), positions(i,2),positions(i,3)    
+end do
 end subroutine
 
 
