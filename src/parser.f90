@@ -1,21 +1,28 @@
 ! Subroutine to parse topology files and store data 
-! ***NOT TESTED version***
+! ***NOT TESTED, but COMPILES WELL***
 ! Author: Leonardo Di Ciano (2025)
+
+module parser_mod
+
+contains
+
 subroutine parser(xyzfile,topofile,n_atoms,n_bonds,n_angles,n_impdie,n_torsions,mweights,positions,atomtypes,bond_params,&
-                angle_params,impdihedrals_params,tors_params,lj_params,resp_charges)
+                angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag)
 
 implicit none
 
 character(len=*), intent(in) :: xyzfile, topofile 
+logical,intent(in) :: debug_flag
 integer :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
-character, allocatable, intent(out) :: atomtypes(:)
+character(len=2), allocatable, intent(out) :: atomtypes(:)
 real, allocatable, intent(out) :: mweights(:),positions(:,:),bond_params(:,:),angle_params(:,:),impdihedrals_params(:,:),&
                                     tors_params(:,:),lj_params(:,:), resp_charges(:,:)
 character(len=256) :: line
 logical :: inAtomBlock,inBondBlock,inAngleBlock,inImpDieBlock, inDieBlock, inLJBlock, inChgBlock 
-integer :: count, dummy_idx, io
-character(len=20) :: dummy_symb
+integer :: count, dummy_idx, io, i
+character(len=256) :: dummy_symb
 
+! Initialize the block flags
 inAtomBlock = .false.
 inBondBlock = .false.
 inAngleBlock = .false.
@@ -24,8 +31,13 @@ inDieBlock = .false.
 inLJBlock = .false. 
 inChgBlock = .false.
 
+! Open topology file
 open(unit=10,file=topofile,status='old',access='sequential',action='read')
 
+if (debug_flag) then
+    write(*,*) ""
+    write(*,*) "Parsing the topology file"
+end if
 
 do
     read(10,'(A)',iostat=io) line
@@ -37,51 +49,91 @@ do
         allocate(atomtypes(n_atoms))    !Allocating the arrays for storing data
         allocate(mweights(n_atoms))
         count=0   !the count is resetted in each section, for correct array indexing
+
+        if (debug_flag) then
+            write(*,*) "Reading ", n_atoms ," Atom Types"
+        end if
+        
         cycle
+
     elseif (index(line,'[Bonds]') == 1) then !Starting Block [Bonds]
         inBondBlock = .true.
         read(line, *) dummy_symb, n_bonds
         allocate(bond_params(n_bonds,4))
         count=0
+
+        if (debug_flag) then
+            write(*,*) "Reading ", n_bonds ," bonds terms"       
+        end if
+
         cycle
+
     elseif (index(line,'[Angles]') == 1) then !Starting Block [Angles]
         inAngleBlock = .true.
         read(line, *) dummy_symb, n_angles
         allocate(angle_params(n_angles,5))
         count=0
+        
+        if (debug_flag) then
+            write(*,*) "Reading ", n_angles ," angle terms"       
+        end if
+        
         cycle
-    elseif (trim(line) == '[ImproperDihedrals]') then !Starting Block [ImproperDihedrals]
+
+    elseif (index(line,'[ImproperDihedrals]') == 1) then !Starting Block [ImproperDihedrals]
         inImpDieBlock = .true.
         read(line, *) dummy_symb, n_impdie
         if (n_impdie == 0 ) then
-            allocate(impdihedrals_params(1,1))
-            impdihedrals_params(1,1)=0
+            allocate(impdihedrals_params(0,8))
         else
             allocate(impdihedrals_params(n_impdie,8))
         end if
         count=0
+        
+        if (debug_flag) then
+            write(*,*) "Reading ", n_impdie ," improper dihedral terms"       
+        end if
+
         cycle
-    elseif (trim(line) == '[Dihedrals]') then !Starting Block [Dihedrals]
+
+    elseif (index(line,'[Dihedrals]') == 1) then !Starting Block [Dihedrals]
         inDieBlock = .true.
         read(line, *) dummy_symb, n_torsions
         if (n_torsions == 0 ) then
-            allocate(tors_params(1,1))
-            tors_params(1,1)=0
+            allocate(tors_params(0,8))
         else
             allocate(tors_params(n_torsions,8))
         end if
         count=0
+
+        if (debug_flag) then
+            write(*,*) "Reading ", n_torsions ," dihedral terms"       
+        end if
+
         cycle
-    elseif (trim(line) == '[LJ]') then !Starting Block [LJ]
+
+    elseif (index(line, '[LJ]') == 1) then !Starting Block [LJ]
         inLJBlock = .true.
         count=0
         allocate(lj_params(n_atoms,3))
+        
+        if (debug_flag) then
+            write(*,*) "Reading ", n_atoms ," LJ parameters"       
+        end if
+
         cycle
-    elseif (trim(line) == '[Charges]') then !Starting Block [Charges]
+
+    elseif (index(line, '[Charges]') == 1) then !Starting Block [Charges]
         inChgBlock = .true.
         count=0
         allocate(resp_charges(n_atoms,2))
+        
+        if (debug_flag) then
+            write(*,*) "Reading ", n_atoms ," partial charges"       
+        end if
+
         cycle
+
     end if
 
     if (inChgBlock .and. trim(line) == "" ) then
@@ -126,21 +178,56 @@ do
 end do
 close(10)
 
+if (debug_flag) then
+    write(*,*) ""
+    write(*,*) "Parsing the topology file - Done"
+    write(*,*) "Summary of stored data sizes: "
+    write(*,FMT='( "Bond parameters: ", I4," rows ",I4," cols")') size(bond_params,1),size(bond_params,2)
+    write(*,FMT='( "Angle parameters: ", I4," rows ",I4," cols")') size(angle_params,1),size(angle_params,2)
+    write(*,FMT='( "Dihedrals parameters: ", I4," rows ",I4," cols")') size(tors_params,1),size(tors_params,2)
+    write(*,FMT='( "Improper dihedrals parameters: ", I4," rows ",I4," cols")') size(impdihedrals_params,1),& 
+                    size(impdihedrals_params,2)
+    write(*,FMT='( "LJ parameters: ", I4," rows ",I4," cols")') size(lj_params,1),size(lj_params,2)
+end if
+
 ! now parsing the XYZ file
 open(unit=11,file=xyzfile,status='old',access='sequential',action='read')
-allocate(positions(n_atoms,4))
+allocate(positions(n_atoms,3))
+
+if (debug_flag) then
+    write(*,*) ""
+    write(*,*) "Reading XYZ coordinates"       
+end if
+
 count=0
 do
     read(11,'(A)') line
     if ( count < 2 ) then !Skip first two lines of XYZ file
         count = count + 1
         cycle
+    elseif (count == n_atoms + 1) then
+        exit
     else
         !use count-1 to match the atom index
-        read(line, *) positions(count-1,1), positions(count - 1,2), positions(count-1,3), positions(count-1,4)
+        read(line, *) dummy_symb, positions(count - 1,1), positions(count-1,2), positions(count-1,3)
         count = count + 1
     end if
 end do
 close(11)
+if (debug_flag) then
+    write(*,*) "Reading XYZ coordinates - Done"       
+end if
 
+! Write output
+write(*,*)""
+write(*,*)"Parsing of input files completed"
+write(*,*)""
+write(*,*) "Atom Types and XYZ coordinates (Å)"
+write(*,FMT='("Index",2X,"Atom Type",8X,"X",15X,"Y",15X,"Z")')
+do i=1, size(positions,1), 1
+    write(*,FMT='(I3,5X,A2,2X,F15.6,2X,F15.6,2X,F15.6)') i, atomtypes(i),positions(i,1), positions(i,2),positions(i,3)    
+end do
 end subroutine
+
+
+end module

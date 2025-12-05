@@ -1,0 +1,20 @@
+[AtomTypes] 2
+1	H	H	1.008
+2	H	H	1.008
+
+[Bonds] 1
+    1	2	0.0741 259408.0
+
+[Angles] 0
+
+[ImproperDihedrals] 0
+
+[Dihedrals] 0
+
+[LJ]
+1	2.64953E-01	6.56888E-02
+2	2.64953E-01	6.56888E-02
+
+[Charges]
+1 0.000000
+2 0.000000

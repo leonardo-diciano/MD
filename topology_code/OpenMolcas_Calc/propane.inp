@@ -1,0 +1,6 @@
+&GATEWAY
+    coord=propane.xyz
+    basis=STO-3G
+    group=nosymm
+&SEWARD
+&SCF         
