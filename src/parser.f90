@@ -1,5 +1,4 @@
 ! Subroutine to parse topology files and store data 
-! ***NOT TESTED, but COMPILES WELL***
 ! Author: Leonardo Di Ciano (2025)
 
 module parser_mod

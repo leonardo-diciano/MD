@@ -1,5 +1,4 @@
 ! Forces and Potential Energy calculator 
-! ***NOT TESTED, FINAL CHECK NEEDED***
 ! Author: Leonardo Di Ciano (2025)
 
 module force_field_mod
@@ -27,7 +26,7 @@ real, intent(in) :: positions(n_atoms,3),bond_params(n_bonds,4),angle_params(n_a
 
 real, intent(out) :: tot_pot
 real, allocatable, intent(out) :: forces(:,:)
-real :: pi, kcal_to_kJ, charge_to_kJ_mol, bond_pot, distance, angle_pot, angle , die_pot, imp_die_pot, coulomb_pot, lj_pot,&
+real :: pi, kcal_to_kJ, charge_to_kJ_mol, bond_pot, distance, angle_pot, angle , die_pot, imp_die_pot, coulomb_pot, lj_pot,& 
         pot_14, pot
 real :: d12(3), d23(3), d34(3), f_magnitude, epsilon, sigma, f1(3), f3(3), f2(3), f4(3), d12_norm, d23_norm
 integer :: i, j, k, row, a1, a2, a3, a4, pair(2),one_bond_list(n_bonds,2), two_bonds_list(n_angles,2)  
@@ -50,7 +49,7 @@ forces(:,:) = 0         ! initialize the force vector
 
 ! Bonds term
 
-if (debug_flag) then
+if (debug_flag .and. (n_bonds > 0)) then
     write(*,*) ""
     write(*,*) "Bonds term calculation"
     write(*,FMT='("Atom 1",2X,"Atom 2",2X,"distance(Å)",2X,"k_b(kJ/(mol * Å^2))",2X,"d_eq(Å)",2X,"Potential Energy(kJ/mol)")') 
@@ -86,21 +85,23 @@ do i=1, n_bonds, 1
 end do
 
 ! Printing final summary of bonds contributions
-write(*,*) ""
-write(*,*) "Bonds contribution to potential energy: ", bond_pot, "kJ/mol"
+if (n_bonds > 0) then
+    write(*,*) ""
+    write(*,*) "Bonds contribution to potential energy: ", bond_pot, "kJ/mol"
 
-if (debug_flag) then
-        write(*,*) ""
-        write(*,*) "Cartesian forces over the atoms after bonds calculation:"
-        do i=1, size(forces,1), 1
-            write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)    
-        end do
+    if (debug_flag .and. n_bonds > 0 ) then
+            write(*,*) ""
+            write(*,*) "Cartesian forces over the atoms after bonds calculation:"
+            do i=1, size(forces,1), 1
+                write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)    
+            end do
+    end if
 end if
 
 
 ! Angles term
 
-if (debug_flag) then
+if (debug_flag .and. (n_angles > 0)) then
     write(*,*) ""
     write(*,*) "Angles term calculation"
     write(*,FMT='("Atom 1",2X,"Atom 2",2X,"Atom 3",2X,"Angle (rad)",2X,"k_theta (kJ/(mol * rad^2))",2X,&
@@ -152,15 +153,17 @@ do i=1, n_angles, 1
 end do
 
 ! Printing final summary of angles contributions
-write(*,*) ""
-write(*,*) "Angles contribution to potential energy: ", angle_pot, "kJ/mol"
+if (n_angles > 0) then
+    write(*,*) ""
+    write(*,*) "Angles contribution to potential energy: ", angle_pot, "kJ/mol"
 
-if (debug_flag ) then
-        write(*,*) ""
-        write(*,*) "Cartesian forces over the atoms after angles calculation:"
-        do i=1, size(forces,1), 1
-            write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)    
-        end do
+    if (debug_flag)then
+            write(*,*) ""
+            write(*,*) "Cartesian forces over the atoms after angles calculation:"
+            do i=1, size(forces,1), 1
+                write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)    
+            end do
+    end if
 end if
 
 
@@ -176,8 +179,12 @@ end if
 
 k=1
 die_pot = 0     ! initialize the potential
-allocate(three_bonds_list(2 * n_torsions,2))
-three_bonds_list(:,:) = 0   ! Initialize the 1-4 interaction atoms list
+if (n_torsions > 0) then
+    allocate(three_bonds_list(2 * n_torsions,2))
+    three_bonds_list(:,:) = 0   ! Initialize the 1-4 interaction atoms list
+else
+    allocate(three_bonds_list(0,0))
+end if
 do i=1, n_torsions, 1
 
     ! Get atoms' indexes
@@ -347,7 +354,7 @@ if (n_impdie > 0) then
     write(*,*) ""
     write(*,*) "Improper dihedrals contribution to potential energy: ", imp_die_pot, "kJ/mol"
 
-    if (debug_flag .and. (n_impdie > 0)) then
+    if (debug_flag ) then
             write(*,*) ""
             write(*,*) "Cartesian forces over the atoms after improper dihedrals calculation:"
             do i=1, size(forces,1), 1
@@ -358,44 +365,48 @@ end if
 
 ! Create list of atoms for non-bonded interactions (>3 bonds distance)
 k=1
-allocate(non_bonded_pairs(n_atoms*(n_atoms-1)/2, 2))
-do i=1, n_atoms, 1
-    do j=i+1, n_atoms, 1
-        pair=[i,j]
-        
-        is_bonded = .false.
-        do row = 1, size(one_bond_list,1)   ! Exclude if directly bonded
-            if ( (one_bond_list(row,1) == i .and. one_bond_list(row,2) == j) .or. &
-                (one_bond_list(row,1) == j .and. one_bond_list(row,2) == i) ) then
-                is_bonded = .true.
-            endif
+if (n_atoms > 4) then 
+    allocate(non_bonded_pairs(n_atoms*(n_atoms-1)/2, 2))
+    do i=1, n_atoms, 1
+        do j=i+1, n_atoms, 1
+            pair=[i,j]
+            
+            is_bonded = .false.
+            do row = 1, size(one_bond_list,1)   ! Exclude if directly bonded
+                if ( (one_bond_list(row,1) == i .and. one_bond_list(row,2) == j) .or. &
+                    (one_bond_list(row,1) == j .and. one_bond_list(row,2) == i) ) then
+                    is_bonded = .true.
+                endif
+            end do
+            if (is_bonded) cycle
+            
+            do row = 1, size(two_bonds_list,1)   ! Exclude two bonds distance
+                if ( (two_bonds_list(row,1) == i .and. two_bonds_list(row,2) == j) .or. &
+                    (two_bonds_list(row,1) == j .and. two_bonds_list(row,2) == i) ) then
+                    is_bonded = .true.
+                endif
+            enddo
+            if (is_bonded) cycle
+
+            do row = 1, size(three_bonds_list,1)    ! Exclude three bonds distance atoms (1-4 separately)
+                if ( (three_bonds_list(row,1) == i .and. three_bonds_list(row,2) == j) .or. &
+                    (three_bonds_list(row,1) == j .and. three_bonds_list(row,2) == i) ) then
+                    is_bonded = .true.
+                endif
+            enddo
+
+            if (is_bonded) then
+                cycle
+            else                        ! If all checks are passed, assign to non bonded list
+                non_bonded_pairs(k,1) = i
+                non_bonded_pairs(k,2) = j
+                k = k + 1
+            end if
         end do
-        if (is_bonded) cycle
-        
-        do row = 1, size(two_bonds_list,1)   ! Exclude two bonds distance
-            if ( (two_bonds_list(row,1) == i .and. two_bonds_list(row,2) == j) .or. &
-                (two_bonds_list(row,1) == j .and. two_bonds_list(row,2) == i) ) then
-                is_bonded = .true.
-            endif
-        enddo
-        if (is_bonded) cycle
-
-        do row = 1, size(three_bonds_list,1)    ! Exclude three bonds distance atoms (1-4 separately)
-            if ( (three_bonds_list(row,1) == i .and. three_bonds_list(row,2) == j) .or. &
-                (three_bonds_list(row,1) == j .and. three_bonds_list(row,2) == i) ) then
-                is_bonded = .true.
-            endif
-        enddo
-
-        if (is_bonded) then
-            cycle
-        else                        ! If all checks are passed, assign to non bonded list
-            non_bonded_pairs(k,1) = i
-            non_bonded_pairs(k,2) = j
-            k = k + 1
-        end if
     end do
-end do
+else
+    allocate(non_bonded_pairs(0,0))
+end if
 
 ! Reshape the list to have only assigned rows
 if (k > 1) then
@@ -410,7 +421,7 @@ end if
 
 !LJ term (> 1-4 interactions)
 
-if (debug_flag) then
+if (debug_flag .and. (size(non_bonded_pairs,dim=1) > 0)) then
     write(*,*) ""
     write(*,*) "LJ term calculation"
     write(*,FMT='("Atom 1",2X,"Atom 2",2X,"distance(Å)",2X,"epsilon(kJ/mol)",2X,"sigma(Å)",2X,"Potential Energy(kJ/mol)")') 
@@ -457,21 +468,22 @@ end do
 
 
 ! Printing final summary of LJ contributions
-write(*,*) ""
-write(*,*) "LJ contribution to potential energy: ", lj_pot, "kJ/mol"
+if (size(non_bonded_pairs,dim=1) > 0) then
+    write(*,*) ""
+    write(*,*) "LJ contribution to potential energy: ", lj_pot, "kJ/mol"
 
-if (debug_flag) then
-        write(*,*) ""
-        write(*,*) "Cartesian forces over the atoms after LJ calculation:"
-        do i=1, size(forces,1), 1
-            write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)    
-        end do
+    if (debug_flag) then
+            write(*,*) ""
+            write(*,*) "Cartesian forces over the atoms after LJ calculation:"
+            do i=1, size(forces,1), 1
+                write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)    
+            end do
+    end if
 end if
-
 
 !Coulomb term 
 
-if (debug_flag) then
+if (debug_flag .and. (size(non_bonded_pairs,dim=1) > 0)) then
     write(*,*) ""
     write(*,*) "Coulombic interaction term calculation"
     write(*,FMT='("Atom 1",4X,"Charge",6X,"Atom 2",4X,"Charge",4X,"Distance(Å)",4X,"Potential Energy(kJ/mol)")') 
@@ -508,21 +520,23 @@ end do
 
 
 ! Printing final summary of Coulombic contributions
-write(*,*) ""
-write(*,*) "Coulombic interaction contribution to potential energy: ", coulomb_pot, "kJ/mol"
+if  (size(non_bonded_pairs,dim=1) > 0) then
+    write(*,*) ""
+    write(*,*) "Coulombic interaction contribution to potential energy: ", coulomb_pot, "kJ/mol"
 
-if (debug_flag) then
-        write(*,*) ""
-        write(*,*) "Cartesian forces over the atoms after Coulombic interaction calculation:"
-        do i=1, size(forces,1), 1
-            write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)    
-        end do
+    if (debug_flag) then
+            write(*,*) ""
+            write(*,*) "Cartesian forces over the atoms after Coulombic interaction calculation:"
+            do i=1, size(forces,1), 1
+                write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)    
+            end do
+    end if
 end if
 
 
 ! 1 - 4 interactions term
 
-if (debug_flag) then
+if (debug_flag .and. size(three_bonds_list,dim=1) > 0) then
     write(*,*) ""
     write(*,*) "1-4 interactions calculation"
     write(*,FMT='("Atom 1",4X,"Charge",6X,"Atom 2",4X,"Charge"4X,"Distance(Å)",2X,"epsilon(kJ/mol)",2X,"sigma(Å)",&
@@ -585,15 +599,17 @@ do i=1, size(three_bonds_list,dim=1) , 1
 
 end do
 
-write(*,*) ""
-write(*,*) "1-4 interactions contribution to potential energy: ", pot_14, "kJ/mol"
+if (size(three_bonds_list,dim=1) > 0) then
+    write(*,*) ""
+    write(*,*) "1-4 interactions contribution to potential energy: ", pot_14, "kJ/mol"
 
-if (debug_flag) then
-        write(*,*) ""
-        write(*,*) "Cartesian forces over the atoms after 1-4 interactions calculation:"
-        do i=1, size(forces,1), 1
-            write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)    
-        end do
+    if (debug_flag) then
+            write(*,*) ""
+            write(*,*) "Cartesian forces over the atoms after 1-4 interactions calculation:"
+            do i=1, size(forces,1), 1
+                write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)    
+            end do
+    end if
 end if
 
 
