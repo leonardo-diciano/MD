@@ -5,31 +5,32 @@ contains
 subroutine pine_tree()
 
     implicit none
-    character(len=70), dimension(13) :: tree = [ &
-        "⠀⠀⠀⢀⣀⡴⠲⡄⣀⠀⣠⠖⢆⣀⡤⣄⣠⣄⠀⠀⠀⠀⠈", &
-        "⠀⠀⡤⠷⠄⠀⠀⠀⠀⠙⠋⠀⠀⠀⠀⠀⠈⠁⠀⠐⡄⠀⠀", &
-        "⠀⡜⠀⠀⠤⠊⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠠⠄⢤⠀⠘⡄", &
-        "⢠⣇⠀⠀⠀⠤⠶⠶⡒⣋⣯⠖⡇⣀⡀⠀⠀⠀⠀⠀⡀⡠⠇", &
-        "⠀⠀⠀⠉⠉⠲⠶⢖⡟⠋⢀⡔⠃⡏⠦⠄⠄⠤⠴⠃⠀⠀⠀", &
-        "⠀⠀⠀⠀⠀⠀⠀⠀⡧⠖⠋⠀⡸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", &
-        "⠀⠀⠀⠀⠀⠀⠀⡞⠀⠀⡠⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", &
-        "⠀⠀⠀⠀⠀⠀⢸⠀⠀⠘⠲⠤⣠⠶⡄⠀⠀⠀⠀⠀⠀⠀⠀", &
-        "⠀⠀⠀⠀⠀⢠⠃⠀⠀⠀⠀⠀⠀⡏⠉⠀⠀⠀⠀⠀⠀⠀⠀", &
-        "⠀⠀⠀⠀⠀⠑⠢⣄⡀⠀⠀⠀⠀⡇⠀⠀⠈⠉⠉⠁⠀⠀⠀", &
-        "⠀⠀⠀⠀⠀⠀⠀⠀⠈⡇⠀⠀⢸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", &
-        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⣸⠀⠀⠀⠐⠋⠀⠀⠀⠀⠀", &
-        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀" ]
-
+    character(len=100), dimension(15) :: tree =[&
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣀⣀⣀⠀⠀⠀⠀⠀⠀⠀⠀",&
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⣿⡟⠋⢻⣷⣄⡀⠀⠀⠀⠀⠀",&
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣤⣾⣿⣷⣿⣿⣿⣿⣿⣶⣾⣿⣿⠿⠿⠿⠶⠄⠀",&
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠉⠀⠀⠀⠀⠀⠀⠀",&
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀",&
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⠀⠀⠀⠀⠀⠀⠀⠀",&
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀",&
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀",&
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⡟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",&
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⣿⣿⣿⣿⣿⣿⠟⠻⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",&
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⣿⣿⣿⣿⣿⣿⣆⣤⠿⢶⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀",&
+        "⠀⠀⠀⠀⠀⠀⠀⠀⢰⣿⣿⣿⣿⣿⣿⣿⣿⡀⠀⠀⠀⠑⠀⠀⠀⠀⠀⠀⠀⠀",&
+        "⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",&
+        "⠀⠀⠀⠀⠀⠀⠀⠸⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀",&
+        "⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠉⠙⠛⠋⠉⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀"]
     integer :: i
     do i = 1, size(tree)
         write(*,*) trim(tree(i))
     end do
     write(*,*) ""
     write(*,*) ""
-end subroutine 
+end subroutine
 
 subroutine final_phrase()
-    
+
     implicit none
     character(len=:), allocatable :: phrases(:)
     real :: r
@@ -39,19 +40,19 @@ subroutine final_phrase()
     phrases = [character(len=256) :: &
     "I'll break it down just to feel okay, I'll tear it down just to feel the pain."&
     & //achar(10)// "Sorrower, ~ Orbit Culture", &
-    
-    "I'm scared to get close, and I hate being alone." & 
+
+    "I'm scared to get close, and I hate being alone." &
     &//achar(10)// "Can You Feel My Heart?, Bring Me The Horizon", &
-    "Everybody showed up for the execution but nobody would show their face." & 
+    "Everybody showed up for the execution but nobody would show their face." &
     &//achar(10)// "One Assasination Under God, Marilyn Manson", &
-    
-    "The only dream that matters is the one you wake up from."& 
+
+    "The only dream that matters is the one you wake up from."&
     &//achar(10)// "Faithless by Default, Dark Tranquillity", &
-    
-    "Fear is the weakness in all of us, it's sad to see you go."& 
+
+    "Fear is the weakness in all of us, it's sad to see you go."&
     &//achar(10)// "Fear Is The Weakness, In Flames",&
-    
-    "If this is my crown, I am its slave." & 
+
+    "If this is my crown, I am its slave." &
     &//achar(10)// "Death Can Take Me, Lorna Shore",&
 
     "Wenn Fliegen hinter Fliegen fliegen, fliegen Fliegen hinter Fliegen her."&
@@ -64,7 +65,7 @@ subroutine final_phrase()
     &//achar(10)// "~(definitely not my subjective opinion)",&
 
 
-    "We're dancing like flames flickering in the night"& 
+    "We're dancing like flames flickering in the night"&
     &//achar(10)// "Pain Remains I, Lorna Shore" ]
 
 
@@ -80,7 +81,7 @@ subroutine final_phrase()
     write(*,*) ""
     write(*,*) ""
     write(*,*) output
-end subroutine 
+end subroutine
 
 
 end module
