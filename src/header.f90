@@ -59,11 +59,34 @@ subroutine final_phrase()
     &//achar(10)// "~A German tongue twister",&
 
     "Thanks to quantum mechanics, we seem to do have a free will, but I prefer the deterministic world"&
-    &//achar(10)// "~based on a personal discussion (but Einstein and Bohr had that discussion too)",&
+    &//achar(10)// " ~ based on a personal discussion (but Einstein and Bohr had that discussion too)",&
 
     "Pine trees are the best trees, that is a fact."&
-    &//achar(10)// "~(definitely not my subjective opinion)",&
+    &//achar(10)// " ~ (definitely not my subjective opinion)",&
 
+    "I will send a fully armed batailon to remind you of my love"&
+    &//achar(10)// " ~ You'll Be Back from the Musical 'Hamilton'",&
+
+    "Bismarck biss Mark bis Mark Bismarck biss."&
+    &//achar(10)// " ~ another German tongue twister",&
+
+    "Valar Morghulis."&
+    &//achar(10)// " ~ No one",&
+
+    "One does not simply walk into Mordor."&
+    &//achar(10)// " ~ Faramir's older brother",&
+
+    "It's like in the great stories, Mr. Frodo. The ones that really mattered."&
+    &//achar(10)// " ~ the greatest gardener in the world",&
+
+    "For the night is dark and full of terrors."&
+    &//achar(10)// " ~ Melisandre",&
+
+    "Winter is coming."&
+    &//achar(10)// " ~ House Stark",&
+
+    "You know nothing, Jon Snow."&
+    &//achar(10)// " ~ Ygritte",&
 
     "We're dancing like flames flickering in the night"&
     &//achar(10)// "Pain Remains I, Lorna Shore" ]
