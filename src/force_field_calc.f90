@@ -67,11 +67,11 @@ do i=1, n_bonds, 1
 
     ! Calculate the force magnitude 
                     !force constant                            equilibrium distance
-    f_magnitude = - bond_params(i,3) * kcal_to_kJ * (distance - bond_params(i,4))  
+    f_magnitude = - 2 * bond_params(i,3) * kcal_to_kJ * (distance - bond_params(i,4))  
 
     ! Calculate the force on each atom and update the force vector
-    forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a1,1:3) - positions(a2,1:3)) / distance)
-    forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a1,1:3) - positions(a2,1:3)) / distance)
+    forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
+    forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
     
     ! Calculate the bond contributions to potential energy
     !      force constant                           equilibrium distance
@@ -435,7 +435,7 @@ do i=1, size(non_bonded_pairs,dim=1), 1      ! Iterate over the number of non-bo
     a2 = non_bonded_pairs(i,2)
 
     ! Calculate the distance between the atoms
-    distance = SQRT(dot_product(positions(a1,1:3)-positions(a2,1:3),positions(a1,1:3)-positions(a2,1:3)))
+    distance = SQRT(dot_product(positions(a2,1:3)-positions(a1,1:3),positions(a2,1:3)-positions(a1,1:3)))
 
     if (distance < 6 ) then ! Using a cutoff radius of 6 Å
         ! Calculate the parameters following Lorentz/Berthelot mixing rules
@@ -448,8 +448,8 @@ do i=1, size(non_bonded_pairs,dim=1), 1      ! Iterate over the number of non-bo
         f_magnitude = 24 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )
 
         ! Calculate the force on each atom and update the force vector
-        forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a1,1:3) - positions(a1,1:3)) / distance**2 )
-        forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a2,1:3)) / distance**2 )
+        forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
+        forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
 
         ! Calculate LJ contributions to potential energy
         pot = (4 * epsilon * ( (sigma / distance)**12 - (sigma / distance)**6 ))
@@ -504,8 +504,8 @@ do i=1, k-1, 1
     f_magnitude = - ((resp_charges(a1,2) * resp_charges(a2,2) * charge_to_kJ_mol ) / (distance**2))  
 
     ! Calculate the force on each atom and update the force vector
-    forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a1,1:3) - positions(a1,1:3)) / distance)
-    forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a2,1:3)) / distance)
+    forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
+    forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
     
     ! Calculate Coulombic contributions to the potential energy
     pot = (resp_charges(a1,2) * resp_charges(a2,2) *  charge_to_kJ_mol ) / ( distance)
@@ -551,7 +551,7 @@ do i=1, size(three_bonds_list,dim=1) , 1
     a2=three_bonds_list(i,2)
 
     ! Calculate the distance between the atoms
-    distance = SQRT(dot_product(positions(a1,1:3)-positions(a2,1:3),positions(a1,1:3)-positions(a2,1:3)))
+    distance = SQRT(dot_product(positions(a2,1:3)-positions(a1,1:3),positions(a2,1:3)-positions(a1,1:3)))
 
     ! LJ term  (scaled down by 2)
 
@@ -566,8 +566,8 @@ do i=1, size(three_bonds_list,dim=1) , 1
         f_magnitude = 12 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )
 
         ! Calculate the force on each atom and update the force vector
-        forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a1,1:3) - positions(a1,1:3)) / distance**2 )
-        forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a2,1:3)) / distance**2 )
+        forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
+        forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
 
         ! Calculate LJ part of 1-4 interaction contributions to potential energy
         pot = 2 * epsilon * ( (sigma / distance)**12 - (sigma / distance)**6 )
@@ -580,8 +580,8 @@ do i=1, size(three_bonds_list,dim=1) , 1
     f_magnitude = - ((resp_charges(a1,2) * resp_charges(a2,2) * charge_to_kJ_mol ) / ( distance**2))  / 1.2 
 
     ! Calculate the force on each atom and update the force vector
-    forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a1,1:3) - positions(a1,1:3)) / distance) 
-    forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a2,1:3)) / distance)
+    forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance) 
+    forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
     
     ! Calculate Coulombic part of 1-4 interaction contributions to potential energy
     pot = ((resp_charges(a1,2) * resp_charges(a2,2) *  charge_to_kJ_mol ) / ( distance)) /1.2 
