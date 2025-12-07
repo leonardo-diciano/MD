@@ -490,7 +490,7 @@ if (debug_flag .and. (size(non_bonded_pairs,dim=1) > 0)) then
 end if
 
 coulomb_pot = 0   ! initialize the potential
-do i=1, k-1, 1
+do i=1, size(non_bonded_pairs,dim=1), 1
 
     ! Get atoms' indexes
     a1=non_bonded_pairs(i,1)
