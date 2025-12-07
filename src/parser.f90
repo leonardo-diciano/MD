@@ -187,6 +187,7 @@ if (debug_flag) then
     write(*,FMT='( "Improper dihedrals parameters: ", I4," rows ",I4," cols")') size(impdihedrals_params,1),& 
                     size(impdihedrals_params,2)
     write(*,FMT='( "LJ parameters: ", I4," rows ",I4," cols")') size(lj_params,1),size(lj_params,2)
+    write(*,FMT='( "Partial charges: ", I4," rows ",I4," cols")') size(resp_charges),size(resp_charges,2)
 end if
 
 ! now parsing the XYZ file

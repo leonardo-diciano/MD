@@ -3,6 +3,13 @@
 
 module force_field_mod
 
+implicit none
+
+integer :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
+real, allocatable ::bond_params(:,:),angle_params(:,:),impdihedrals_params(:,:),&
+                    tors_params(:,:),lj_params(:,:),resp_charges(:,:)
+logical :: debug_flag
+
 contains
 
 function cross_product(a, b) result(cross)
@@ -36,6 +43,7 @@ logical :: is_bonded
 
 if (debug_flag) then
     write(*,*) "Starting the Force Field evaluation"
+    write(*,*) positions
 end if
 ! Useful costants and conversion factors
 pi = 3.14159265
@@ -416,13 +424,16 @@ if (k > 1) then
     allocate(non_bonded_pairs(k-1, 2))  ! reallocate with correct dimension
     non_bonded_pairs = dummy_pairs
     deallocate(dummy_pairs)
+elseif (k == 1 ) then   ! safeguard to skip non-bonded terms calculation when 0 pairs are present
+    deallocate(non_bonded_pairs)
+    allocate(non_bonded_pairs(0,0))
 end if
 
 
 !LJ term (> 1-4 interactions)
 
 if (debug_flag .and. (size(non_bonded_pairs,dim=1) > 0)) then
-    write(*,*) ""
+    write(*,*) "" 
     write(*,*) "LJ term calculation"
     write(*,FMT='("Atom 1",2X,"Atom 2",2X,"distance(Å)",2X,"epsilon(kJ/mol)",2X,"sigma(Å)",2X,"Potential Energy(kJ/mol)")') 
 end if
@@ -631,5 +642,18 @@ end if
 
 
 end subroutine
+
+
+subroutine get_energy_gradient(positions,tot_pot,forces)
+    implicit none
+    real,allocatable, intent(in) :: positions(:,:)
+    real, intent(out) :: tot_pot
+    real, allocatable, intent(out) :: forces(:,:)
+
+    CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
+            impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,debug_flag)
+
+end subroutine
+
 
 end module 
