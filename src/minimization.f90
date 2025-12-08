@@ -11,16 +11,19 @@ contains
         implicit none
 
         logical, intent(in) :: debug_flag
+        integer, intent(in) :: n_atoms
         double precision, intent(inout) :: tot_pot
         double precision, intent(inout) :: positions(n_atoms,3), forces(n_atoms,3)
 
         ! No use for these outside of this subroutine
-        double precision, allocatable :: forces_P1(:,3), forces_P2(:,3), forces_P3(:,3), point1(:,3),point2(:,3),point3(:,3)
+        double precision :: forces_P1(n_atoms,3), forces_P2(n_atoms,3), forces_P3(n_atoms,3), point1(n_atoms,3),&
+                            point2(n_atoms,3),point3(n_atoms,3)
         integer :: iter
         double precision :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm, gradnorm_previous,a,b,best_step
         double precision, parameter :: conv_gradnorm=1e-6,alpha = 0.01
 
         call get_energy_gradient(positions,tot_pot,forces)
+
 
         gradnorm_previous = SQRT(dot_product(forces,forces))
 
@@ -31,13 +34,6 @@ contains
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         ! line search: calculate energy at three points; first one is already done
-        allocate(point1(n_atoms,3))
-        allocate(point2(n_atoms,3))
-        allocate(point3(n_atoms,3))
-        allocate(forces_P1(n_atoms,3))
-        allocate(forces_P2(n_atoms,3))
-        allocate(forces_P3(n_atoms,3))
-        
         print*, "delta = ", ABS(gradnorm-gradnorm_previous)
         
         iter = 1
