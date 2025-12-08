@@ -1,4 +1,4 @@
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Program to find the next local minimum
 !
 ! Author: Lila Zapp (2025)
@@ -7,133 +7,81 @@ module minimization_mod
 
 contains
 
-    subroutine minimization(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
-                impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces, debug_flag)
+    subroutine minimization(positions,n_atoms,tot_pot,forces, debug_flag)
         implicit none
 
-        character(len=256), intent(in) :: xyzfile, topofile
-        integer, intent(in) :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
         logical, intent(in) :: debug_flag
-        real, intent(in) :: bond_params(n_bonds,4),angle_params(n_angles,5),&
-                            impdihedrals_params(n_impdie,8),tors_params(n_torsions,8),lj_params(n_atoms,3),resp_charges(n_atoms,2)
+        double precision, intent(inout) :: tot_pot
+        double precision, intent(inout) :: positions(n_atoms,3), forces(n_atoms,3)
 
-        real, intent(inout) :: tot_pot,  positions(n_atoms,3)
-        real, allocatable, intent(inout) :: forces(:,:)
+        ! No use for these outside of this subroutine
+        double precision, allocatable :: forces_P1(:,3), forces_P2(:,3), forces_P3(:,3), point1(:,3),point2(:,3),point3(:,3)
+        integer :: iter
+        double precision :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm, gradnorm_previous,a,b,best_step
+        double precision, parameter :: conv_gradnorm=1e-6,alpha = 0.01
 
-        character(len=2), allocatable :: symbol(:)
-        double precision, allocatable  :: x(:), y(:), z(:), coordlist(:)
-        character(len=200) :: line, term
-        integer            :: iter, i,n,n_term, n_bonds
+        call get_energy_gradient(positions,tot_pot,forces)
 
-        !for reading topofile
-        double precision :: b0,k0
-        integer :: atom1,atom2, n1,n2
-
-        ! for the minimization
-        double precision,allocatable :: F(:),F_P1(:), F_P2(:), F_P3(:), point1(:),point2(:),point3(:)
-        double precision :: b12, U,U_P1, U_P2, U_P3
-        double precision :: x1,x2,y1,y2,z1,z2
-        double precision :: alpha, gradnorm,gradnorm_P1, gradnorm_P2, gradnorm_P3, gradnorm_previous
-        double precision, parameter :: conv_gradnorm=1e-6
-        double precision :: a,b,best_step
-
-        alpha = 0.01
-
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        ! READ THE COORDINATES INTO A LIST (x1,y1,z1,x2,y2,z2,...)
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        open(unit=10, file=xyzfile)
-
-        ! read first line as n_atoms
-        read(10, *) n_atoms
-        allocate(x(n_atoms))
-        allocate(y(n_atoms))
-        allocate(z(n_atoms))
-        allocate(symbol(n_atoms))
-        allocate(coordlist(3*n_atoms))
-        allocate(F(3*n_atoms))
-
-        ! skip second (comment line)
-        read(10, *) line
-
-        print "(a20,i3)", "n_atoms = ", n_atoms
-        n=0
-        do while (n<n_atoms)
-            n = n + 1
-            read(10,*) symbol(n),x(n),y(n),z(n)
-            !print '(I3,2X,A2,3F12.6)', n, symbol(n), x(n), y(n), z(n)
-            i = 3*(n-1)+1
-            !print *, i,i+1,i+2
-            coordlist(i)=x(n)
-            coordlist(i+1)=y(n)
-            coordlist(i+2)=z(n)
-        end do
-        print *,"coordinates in a list (x1,y1,z1,x2,y2,z2,...) = ",coordlist
+        gradnorm_previous = SQRT(dot_product(forces,forces))
 
 
-        ! xyz file in angstrom, convert to nm:
-        coordlist = coordlist*0.1
-        print *, "coordinates transformed into nm", coordlist
-
-
-        call get_forces(coordlist,n_atoms,topofile, F, U,gradnorm)
-
-        gradnorm_previous = 0
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! now that we have the gradient (force vector),
         ! we can follow it (gradient descent) to the minimum
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
         ! line search: calculate energy at three points; first one is already done
-        allocate(point1(3*n_atoms))
-        allocate(point2(3*n_atoms))
-        allocate(point3(3*n_atoms))
-        allocate(F_P1(3*n_atoms))
-        allocate(F_P2(3*n_atoms))
-        allocate(F_P3(3*n_atoms))
+        allocate(point1(n_atoms,3))
+        allocate(point2(n_atoms,3))
+        allocate(point3(n_atoms,3))
+        allocate(forces_P1(n_atoms,3))
+        allocate(forces_P2(n_atoms,3))
+        allocate(forces_P3(n_atoms,3))
+        
         print*, "delta = ", ABS(gradnorm-gradnorm_previous)
+        
         iter = 1
         do while (ABS(gradnorm-gradnorm_previous)>conv_gradnorm)
             print*, ""
             print*, "Iteration =", iter
             print*, "delta = ", ABS(gradnorm-gradnorm_previous)
-            point1(:) = coordlist(:)
-            point2(:) = coordlist(:) + 0.5 * alpha * F(:) / gradnorm
-            point3(:) = coordlist(:) + alpha * F(:) / gradnorm
+            point1(:,:) = positions(:,:)
+            point2(:,:) = positions(:,:) + 0.5 * alpha * forces(:,:) / gradnorm
+            point3(:,:) = positions(:,:) + alpha * forces(:,:) / gradnorm
 
             print*, " "
             print*, "Point1 (eta = 0)"
             !print*, point1(:)
-            !print*, "coordlist = [", coordlist(:)
-            call get_forces(point1,n_atoms,topofile, F_P1, U_P1,gradnorm_P1)
+            !print*, "positions = [", positions(:,:)
+            CALL get_energy_gradient(point1,tot_pot,forces)
             print*, " "
             print*, "Point2 (eta =",0.5*alpha,")"
             !print*, point2(:)
-            !print*, "coordlist = [", coordlist(:)
-            !print*, "alpha * 0.5 * F(:) / gradnorm", alpha * 0.5 * F(:) / gradnorm
-            call get_forces(point2,n_atoms,topofile, F_P2, U_P2,gradnorm_P2)
+            !print*, "positions = [", positions(:,:)
+            !print*, "alpha * 0.5 * forces(:,:) / gradnorm", alpha * 0.5 * forces(:,:) / gradnorm
+            CALL get_energy_gradient(point2,tot_pot,forces)
             print*, " "
             print*, "Point3 (eta =",alpha,")"
             !print*, point3(:)
-            !print*, "coordlist = [", coordlist(:)
-            !print*, "alpha * F(:) / gradnorm", alpha * F(:) / gradnorm
-            call get_forces(point3,n_atoms,topofile, F_P3, U_P3,gradnorm_P3)
+            !print*, "positions = [", positions(:,:)
+            !print*, "alpha * forces(:,:) / gradnorm", alpha * forces(:,:) / gradnorm
+            CALL get_energy_gradient(point3,tot_pot,forces)
 
             !extrapolation
-            b = ((U_P3-U_P1) * (0.5*alpha)**2 - (U_P2 - U_P1)*alpha**2) / (-0.5*alpha**2 *0.5*alpha)
-            a = (U_P3-U_P1) / alpha**2 - b / alpha
+            b = ((tot_pot_P3-tot_pot_P1) * (0.5*alpha)**2 - (tot_pot_P2 - tot_pot_P1)*alpha**2) / (-0.5*alpha**2 *0.5*alpha)
+            a = (tot_pot_P3-tot_pot_P1) / alpha**2 - b / alpha
             best_step = - b / (2*a)
 
             print*,"a = ",a,", b = ",b, ", best_step = ", best_step
 
-            coordlist(:) = coordlist(:) + best_step * F(:) / gradnorm
+            positions(:,:) = positions(:,:) + best_step * forces(:,:) / gradnorm
 
-            print*, coordlist(:)
+            print*, positions(:,:)
 
             gradnorm_previous = gradnorm
-            call get_forces(coordlist,n_atoms,topofile, F, U,gradnorm)
+            CALL get_energy_gradient(positions,tot_pot,forces)
             iter = iter + 1
+            gradnorm = SQRT(dot_product(forces,forces))
 
         end do
 

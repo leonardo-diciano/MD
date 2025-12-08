@@ -94,6 +94,11 @@ CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bon
             impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,debug_flag)
 
 
+! do minimization if -m flag active
+CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag)
+
+print*, "Hellooooo"
+
 CALL final_phrase()
 
 
