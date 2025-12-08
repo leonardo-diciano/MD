@@ -60,7 +60,7 @@ subroutine get_forces(coordlist,natoms,topofile, F_bonds, U_bonds,gradnorm)
 
         ! calculate bond length from xyz
         b12 = SQRT((x1-x2)**2 + (y1-y2)**2 + (z1-z2)**2)
-        print "(a5,f8.1,a7,f6.4,a9,f6.4)", "k0 = ",k0,", b0 = ",b0,", b12 = ",b12
+        !print "(a5,f8.1,a7,f6.4,a9,f6.4)", "k0 = ",k0,", b0 = ",b0,", b12 = ",b12
 
         ! calculate energy
         U_bonds = U_bonds + 0.5 * k0*(b12-b0)**2
@@ -76,10 +76,10 @@ subroutine get_forces(coordlist,natoms,topofile, F_bonds, U_bonds,gradnorm)
     end do
 
     gradnorm = SQRT(dot_product(F_bonds(:),F_bonds(:)))
-    print*, "b12=",b12
+    !print*, "b12=",b12
     !print*, "U_bonds = ", U_bonds
     !print*,"F_bonds = ", F_bonds(:)
-    print*, "gradnorm = ",gradnorm
+    !print*, "gradnorm = ",gradnorm
     !print*, "coordlist = ", coordlist(:)
     close(11)
 end subroutine get_forces

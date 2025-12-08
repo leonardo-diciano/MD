@@ -70,6 +70,7 @@ program minimization
 
 
     call get_forces(coordlist,natoms,topofile, F, U,gradnorm)
+
     gradnorm_previous = 0
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! now that we have the gradient (force vector),
@@ -94,19 +95,19 @@ program minimization
         point2(:) = coordlist(:) + 0.5 * alpha * F(:) / gradnorm
         point3(:) = coordlist(:) + alpha * F(:) / gradnorm
 
-        print*, " "
-        print*, "Point1 (eta = 0)"
+        !print*, " "
+        !print*, "Point1 (eta = 0)"
         !print*, point1(:)
         !print*, "coordlist = [", coordlist(:)
         call get_forces(point1,natoms,topofile, F_P1, U_P1,gradnorm_P1)
-        print*, " "
-        print*, "Point2 (eta =",0.5*alpha,")"
+        !print*, " "
+        !print*, "Point2 (eta =",0.5*alpha,")"
         !print*, point2(:)
         !print*, "coordlist = [", coordlist(:)
         !print*, "alpha * 0.5 * F(:) / gradnorm", alpha * 0.5 * F(:) / gradnorm
         call get_forces(point2,natoms,topofile, F_P2, U_P2,gradnorm_P2)
-        print*, " "
-        print*, "Point3 (eta =",alpha,")"
+        !print*, " "
+        !print*, "Point3 (eta =",alpha,")"
         !print*, point3(:)
         !print*, "coordlist = [", coordlist(:)
         !print*, "alpha * F(:) / gradnorm", alpha * F(:) / gradnorm
@@ -117,14 +118,15 @@ program minimization
         a = (U_P3-U_P1) / alpha**2 - b / alpha
         best_step = - b / (2*a)
 
-        print*,"a = ",a,", b = ",b, ", best_step = ", best_step
+        !print*,"a = ",a,", b = ",b, ", best_step = ", best_step
 
         coordlist(:) = coordlist(:) + best_step * F(:) / gradnorm
 
-        print*, coordlist(:)
+        !print*, coordlist(:)
 
         gradnorm_previous = gradnorm
         call get_forces(coordlist,natoms,topofile, F, U,gradnorm)
+        print*,"U_bonds = ", U
         iter = iter + 1
 
     end do
