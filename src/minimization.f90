@@ -23,7 +23,7 @@ contains
         !                    positions_P2(n_atoms,3),positions_P3(n_atoms,3)
         real(kind=wp), allocatable :: forces_P1(:,:), forces_P2(:,:), forces_P3(:,:), positions_P1(:,:),&
                             positions_P2(:,:),positions_P3(:,:)
-        integer :: iter
+        integer :: iter,i
         real(kind=wp) :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm_P1, gradnorm_P2, gradnorm_P3, &
                             gradnorm, gradnorm_previous,a,b,best_step
         real(kind=wp), parameter :: conv_gradnorm=1e-6,alpha = 0.01
@@ -100,7 +100,7 @@ contains
             gradnorm_previous = gradnorm
             CALL get_energy_gradient(positions,tot_pot,forces,gradnorm)
             iter = iter + 1
-
+            
         end do
 
         deallocate(positions_P1)
@@ -109,8 +109,17 @@ contains
 
 
         write(*,*) "==================================================================="
-        write(*,*) " HAPPY LANDING "
-        print "(a32,i3,a12)","Gradient Descent converged in ", iter,"iterations"
+        write(*,"(a32,i3,a12//)")"Gradient Descent converged in ", iter,"iterations"
+        write(*,*) "Cartesian forces over the atoms:"
+        do i=1, size(forces,1), 1
+            write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)
+        end do
+        write(*,"(//A)") "New atomic positions:"
+        do i=1, size(positions,1), 1
+            write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, positions(i,1), positions(i,2),positions(i,3)
+        end do
+        write(*,"(//A,F12.8)") "Resulting potential energy:", tot_pot
+
         write(*,*) "==================================================================="
 
     end subroutine minimization
