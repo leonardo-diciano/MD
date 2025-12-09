@@ -7,15 +7,15 @@ contains
 
 subroutine parser(xyzfile,topofile,n_atoms,n_bonds,n_angles,n_impdie,n_torsions,mweights,positions,atomtypes,bond_params,&
                 angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag)
-
+use definitions, only: wp
 implicit none
 
 character(len=*), intent(in) :: xyzfile, topofile 
 logical,intent(in) :: debug_flag
 integer :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
 character(len=2), allocatable, intent(out) :: atomtypes(:)
-real, allocatable, intent(out) :: mweights(:),positions(:,:),bond_params(:,:),angle_params(:,:),impdihedrals_params(:,:),&
-                                    tors_params(:,:),lj_params(:,:), resp_charges(:,:)
+real(kind=wp), allocatable, intent(out) :: mweights(:),positions(:,:),bond_params(:,:),angle_params(:,:),&
+                                           impdihedrals_params(:,:),tors_params(:,:),lj_params(:,:), resp_charges(:,:)
 character(len=256) :: line
 logical :: inAtomBlock,inBondBlock,inAngleBlock,inImpDieBlock, inDieBlock, inLJBlock, inChgBlock 
 integer :: count, dummy_idx, io, i

@@ -29,10 +29,10 @@ subroutine pine_tree()
 end subroutine 
 
 subroutine final_phrase()
-
+    use definitions, only: wp
     implicit none
     character(len=:), allocatable :: phrases(:)
-    real :: r
+    real(kind=wp) :: r
     integer :: idx
     character(len=256) :: output
 

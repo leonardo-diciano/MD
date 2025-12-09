@@ -1,5 +1,6 @@
 
 program MD 
+use definitions, only: wp
 use f90getopt
 use header_mod
 use parser_mod
@@ -10,10 +11,10 @@ implicit none
 character(len=256) :: xyzfile, topofile
 !integer :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
 character(len=2), allocatable :: atomtypes(:)
-!real, allocatable :: mweights(:),positions(:,:),bond_params(:,:),angle_params(:,:),impdihedrals_params(:,:),&
+!real(kind=wp), allocatable :: mweights(:),positions(:,:),bond_params(:,:),angle_params(:,:),impdihedrals_params(:,:),&
 !                                    tors_params(:,:),lj_params(:,:), resp_charges(:,:),
-real, allocatable :: mweights(:),positions(:,:), forces(:,:)
-real :: tot_pot, gradnorm
+real(kind=wp), allocatable :: mweights(:),positions(:,:), forces(:,:)
+real(kind=wp) :: tot_pot, gradnorm
 character(len=1) :: short
 logical :: t_present = .false. , c_present = .false.!, debug_flag = .false.
 

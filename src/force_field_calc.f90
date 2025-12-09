@@ -2,19 +2,20 @@
 ! Author: Leonardo Di Ciano (2025)
 
 module force_field_mod
-
+use definitions, only: wp
 implicit none
 
 integer :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
-real, allocatable ::bond_params(:,:),angle_params(:,:),impdihedrals_params(:,:),&
+real(kind=wp), allocatable ::bond_params(:,:),angle_params(:,:),impdihedrals_params(:,:),&
                     tors_params(:,:),lj_params(:,:),resp_charges(:,:)
 logical :: debug_flag
 
 contains
 
 function cross_product(a, b) result(cross)
-  real, dimension(3) :: cross
-  real, dimension(3), intent(in) :: a, b
+  use definitions, only: wp
+  real(kind=wp), dimension(3) :: cross
+  real(kind=wp), dimension(3), intent(in) :: a, b
 
   cross(1) = a(2) * b(3) - a(3) * b(2)
   cross(2) = a(3) * b(1) - a(1) * b(3)
@@ -24,21 +25,22 @@ end function
 subroutine force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
             impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces, debug_flag)
 
+use definitions, only: wp
 implicit none
 
 integer, intent(in) :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
 logical, intent(in) :: debug_flag
-real, intent(in) :: positions(n_atoms,3),bond_params(n_bonds,4),angle_params(n_angles,5),&
+real(kind=wp), intent(in) :: positions(n_atoms,3),bond_params(n_bonds,4),angle_params(n_angles,5),&
                     impdihedrals_params(n_impdie,8),tors_params(n_torsions,8),lj_params(n_atoms,3),resp_charges(n_atoms,2)
 
-real, intent(out) :: tot_pot
-real, allocatable, intent(out) :: forces(:,:)
-real :: pi, kcal_to_kJ, charge_to_kJ_mol, bond_pot, distance, angle_pot, angle , die_pot, imp_die_pot, coulomb_pot, lj_pot,& 
-        pot_14, pot
-real :: d12(3), d23(3), d34(3), f_magnitude, epsilon, sigma, f1(3), f3(3), f2(3), f4(3), d12_norm, d23_norm
+real(kind=wp), intent(out) :: tot_pot
+real(kind=wp), allocatable, intent(out) :: forces(:,:)
+real(kind=wp) :: pi, kcal_to_kJ, charge_to_kJ_mol, bond_pot, distance, angle_pot, angle , die_pot, imp_die_pot,&
+                 coulomb_pot, lj_pot, pot_14, pot
+real(kind=wp) :: d12(3), d23(3), d34(3), f_magnitude, epsilon, sigma, f1(3), f3(3), f2(3), f4(3), d12_norm, d23_norm
 integer :: i, j, k, row, a1, a2, a3, a4, pair(2),one_bond_list(n_bonds,2), two_bonds_list(n_angles,2)  
 integer, allocatable :: dummy_pairs(:,:), non_bonded_pairs(:,:), three_bonds_list(:,:) 
-real :: a(3),b(3),a_norm,b_norm, dihedral, cap_A(3), cap_B(3), cap_C(3)
+real(kind=wp) :: a(3),b(3),a_norm,b_norm, dihedral, cap_A(3), cap_B(3), cap_C(3)
 logical :: is_bonded
 
 if (debug_flag) then
@@ -421,7 +423,7 @@ if (k > 1) then
     allocate(dummy_pairs(k-1,2))
     dummy_pairs = non_bonded_pairs(1:k-1, :)  ! copy only used rows
     deallocate(non_bonded_pairs)    ! deallocate the wrong dimension
-    allocate(non_bonded_pairs(k-1, 2))  ! reallocate with correct dimension
+    allocate(non_bonded_pairs(k-1, 2))  ! real(kind=wp)locate with correct dimension
     non_bonded_pairs = dummy_pairs
     deallocate(dummy_pairs)
 elseif (k == 1 ) then   ! safeguard to skip non-bonded terms calculation when 0 pairs are present
@@ -645,10 +647,11 @@ end subroutine
 
 
 subroutine get_energy_gradient(positions,tot_pot,forces, gradnorm)
+use definitions, only: wp
     implicit none
-    real, intent(in) :: positions(:,:)
-    real, intent(out) :: tot_pot, gradnorm
-    real, allocatable, intent(out) :: forces(:,:)
+    real(kind=wp), intent(in) :: positions(:,:)
+    real(kind=wp), intent(out) :: tot_pot, gradnorm
+    real(kind=wp), allocatable, intent(out) :: forces(:,:)
     
     integer :: iatom, icartesian 
 

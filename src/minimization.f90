@@ -15,18 +15,18 @@ contains
         logical, intent(in) :: debug_flag
         integer, intent(in) :: n_atoms
         real(kind=wp), intent(inout) :: tot_pot
-        !real(4), intent(inout) :: positions(n_atoms,3)
-        real(4), allocatable, intent(inout) :: positions(:,:),forces(:,:)
+        !real(kind=wp), intent(inout) :: positions(n_atoms,3)
+        real(kind=wp), allocatable, intent(inout) :: positions(:,:),forces(:,:)
 
         ! No use for these outside of this subroutine
-        !real(4) :: forces_P1(n_atoms,3), forces_P2(n_atoms,3), forces_P3(n_atoms,3), positions_P1(n_atoms,3),&
+        !real(kind=wp) :: forces_P1(n_atoms,3), forces_P2(n_atoms,3), forces_P3(n_atoms,3), positions_P1(n_atoms,3),&
         !                    positions_P2(n_atoms,3),positions_P3(n_atoms,3)
-        real(4), allocatable :: forces_P1(:,:), forces_P2(:,:), forces_P3(:,:), positions_P1(:,:),&
+        real(kind=wp), allocatable :: forces_P1(:,:), forces_P2(:,:), forces_P3(:,:), positions_P1(:,:),&
                             positions_P2(:,:),positions_P3(:,:)
         integer :: iter
-        real(4) :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm_P1, gradnorm_P2, gradnorm_P3, &
+        real(kind=wp) :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm_P1, gradnorm_P2, gradnorm_P3, &
                             gradnorm, gradnorm_previous,a,b,best_step
-        real(4), parameter :: conv_gradnorm=1e-6,alpha = 0.01
+        real(kind=wp), parameter :: conv_gradnorm=1e-6,alpha = 0.01
 
         call get_energy_gradient(positions,tot_pot,forces, gradnorm)
 
