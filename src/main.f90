@@ -16,7 +16,7 @@ character(len=2), allocatable :: atomtypes(:)
 real(kind=wp), allocatable :: mweights(:),positions(:,:), forces(:,:)
 real(kind=wp) :: tot_pot, gradnorm
 character(len=1) :: short
-logical :: t_present = .false. , c_present = .false.!, debug_flag = .false.
+logical :: t_present = .false. , c_present = .false., m_present = .false.!, debug_flag = .false.
 
 
 ! Parse the command line arguments with f90getopt library
@@ -71,6 +71,8 @@ do
                 "  main -t file.top -c coord.xyz",&
                 "  main -top=file.top -coord=coord.xyz"
             stop
+        case("m") !minimize if -m flag 
+              m_present = .true.
     end select
 end do
 
@@ -95,8 +97,9 @@ CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bon
 
 
 ! do minimization if -m flag active
-CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag)
-
+if (m_present) then
+    CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag,xyzfile)
+end if 
 
 CALL final_phrase()
 
