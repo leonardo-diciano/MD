@@ -1,5 +1,5 @@
 
-program MD 
+program MD
 use definitions, only: wp
 use f90getopt
 use header_mod
@@ -38,25 +38,25 @@ end if
 CALL pine_tree()
 
 do
-    short = getopt("t:c:dhm", opts) 
+    short = getopt("t:c:dhm", opts)
     select case(short)
         case(char(0))
             exit
         case("t") ! option -t --topology
             t_present=.true.
-            if (trim(optarg) > "") then 
+            if (trim(optarg) > "") then
                 topofile = trim(optarg)
             else
                 stop
             end if
         case("c") ! option -c --coord
             c_present=.true.
-            if (trim(optarg) > "") then 
+            if (trim(optarg) > "") then
                 xyzfile = trim(optarg)
             else
                 stop
             end if
-        case("d")   ! option -d --debug 
+        case("d")   ! option -d --debug
             debug_flag = .true.
         case("h") ! help output
             write(*, '(6(A/),/,4(A/))')&
@@ -81,7 +81,7 @@ else if (t_present .and. (.not. c_present)) then
     write(*,*) "ERROR: Options -c (--coord) with argument is missing"
     stop
 else if (c_present .and. (.not. t_present)) then
-    write(*,*) "ERROR: Options -t (--top) with argument is mising" 
+    write(*,*) "ERROR: Options -t (--top) with argument is mising"
     stop
 end if
 
@@ -91,12 +91,10 @@ CALL parser(xyzfile,topofile,n_atoms,n_bonds,n_angles,n_impdie,n_torsions,mweigh
 
 
 CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
-            impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,debug_flag)
-
+            impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,debug_flag, suppress_flag = .false.)
 
 
 ! do minimization if -m flag active
-write(*,"(/A/A)") "Energy minimization:","-------------------"
 CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag)
 
 

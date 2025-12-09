@@ -25,10 +25,13 @@ contains
                             positions_P2(:,:),positions_P3(:,:)
         integer :: iter,i
         real(kind=wp) :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm_P1, gradnorm_P2, gradnorm_P3, &
-                            gradnorm, gradnorm_previous,a,b,best_step
-        real(kind=wp), parameter :: conv_gradnorm=1e-6,alpha = 0.01
+                            gradnorm, gradnorm_previous,tot_pot_previous,a,b,best_step
+        real(kind=wp), parameter :: conv_pot=1e-8, conv_gradnorm=1e-6,alpha = 0.01
+        integer, parameter :: maxiter = 300
 
-        call get_energy_gradient(positions,tot_pot,forces, gradnorm)
+        logical :: suppress_flag
+
+        call get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag = .true.)
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! now that we have the gradient (force vector),
@@ -46,19 +49,30 @@ contains
         allocate(positions_P3(n_atoms,3))
 
         iter = 1
-        do while (ABS(gradnorm-gradnorm_previous)>conv_gradnorm)
+
+
+        write(*,"(/A/A)") "Energy minimization:","-------------------"
+        write(*,"(/A)") "iteration          U_tot              delta U            F_tot              delta F"
+        write(*,"(A)") "----------------------------------------------------------------------------------------"
+
+        do while ((ABS(tot_pot-tot_pot_previous)>conv_pot) .and. (iter < maxiter))
+        !do while ((ABS(gradnorm-gradnorm_previous)>conv_gradnorm) .or. (ABS(tot_pot-tot_pot_previous)>conv_pot)&
+            !.and. (iter < maxiter)) ! if we want both conv criteria to be met
+            write(*,"(i5,10x,4(F16.8,3x))") iter, tot_pot, tot_pot-tot_pot_previous, gradnorm,&
+                                                                gradnorm-gradnorm_previous
+
             positions_P1(:,:) = positions(:,:)
             positions_P2(:,:) = positions(:,:) + 0.5 * alpha * forces(:,:) / gradnorm
             positions_P3(:,:) = positions(:,:) + alpha * forces(:,:) / gradnorm
 
-            CALL get_energy_gradient(positions_P1,tot_pot_P1,forces_P1,gradnorm_P1)
+            CALL get_energy_gradient(positions_P1,tot_pot_P1,forces_P1,gradnorm_P1,suppress_flag = .true.)
             deallocate(forces_P1)
 
 
-            CALL get_energy_gradient(positions_P2,tot_pot_P2,forces_P2,gradnorm_P2)
+            CALL get_energy_gradient(positions_P2,tot_pot_P2,forces_P2,gradnorm_P2,suppress_flag = .true.)
             deallocate(forces_P2)
 
-            CALL get_energy_gradient(positions_P3,tot_pot_P3,forces_P3,gradnorm_P3)
+            CALL get_energy_gradient(positions_P3,tot_pot_P3,forces_P3,gradnorm_P3,suppress_flag = .true.)
             deallocate(forces_P3)
 
             !extrapolation
@@ -66,8 +80,6 @@ contains
             a = (tot_pot_P3-tot_pot_P1) / alpha**2 - b / alpha
             best_step = - b / (2*a)
 
-            write(*,"(/A,I5,/A)") "In iteration ",iter,"----------------"
-            write(*,*) "delta = ", ABS(gradnorm-gradnorm_previous)
             if (debug_flag) then
                 write(*,*) ""
                 write(*,*) "Iteration =", iter
@@ -95,12 +107,12 @@ contains
 
             positions(:,:) = positions(:,:) + best_step * forces(:,:) / gradnorm
 
-            write(*,*) positions(:,:)
-
             gradnorm_previous = gradnorm
-            CALL get_energy_gradient(positions,tot_pot,forces,gradnorm)
+            tot_pot_previous = tot_pot
+            CALL get_energy_gradient(positions,tot_pot,forces,gradnorm, suppress_flag = .true.)
             iter = iter + 1
-            
+            !write(*,"(/A)") "iteration           U_tot          F_norm           delta"
+
         end do
 
         deallocate(positions_P1)
@@ -108,18 +120,17 @@ contains
         deallocate(positions_P3)
 
 
-        write(*,*) "==================================================================="
-        write(*,"(a32,i3,a12//)")"Gradient Descent converged in ", iter,"iterations"
+        write(*,"(/A)") "==================================================================="
+        write(*,"(a32,i3,a12/)")"Gradient Descent converged in ", iter,"iterations"
         write(*,*) "Cartesian forces over the atoms:"
         do i=1, size(forces,1), 1
             write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)
         end do
-        write(*,"(//A)") "New atomic positions:"
+        write(*,"(/A,F16.8)") "Resulting potential energy:", tot_pot
+        write(*,"(/A)") "New atomic positions:"
         do i=1, size(positions,1), 1
             write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, positions(i,1), positions(i,2),positions(i,3)
         end do
-        write(*,"(//A,F12.8)") "Resulting potential energy:", tot_pot
-
         write(*,*) "==================================================================="
 
     end subroutine minimization
