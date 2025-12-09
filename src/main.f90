@@ -4,7 +4,7 @@ use f90getopt
 use header_mod
 use parser_mod
 use force_field_mod
-
+use minimization_mod
 
 implicit none
 character(len=256) :: xyzfile, topofile
@@ -13,10 +13,9 @@ character(len=2), allocatable :: atomtypes(:)
 !real, allocatable :: mweights(:),positions(:,:),bond_params(:,:),angle_params(:,:),impdihedrals_params(:,:),&
 !                                    tors_params(:,:),lj_params(:,:), resp_charges(:,:),
 real, allocatable :: mweights(:),positions(:,:), forces(:,:)
-real :: tot_pot
+real :: tot_pot, gradnorm
 character(len=1) :: short
 logical :: t_present = .false. , c_present = .false.!, debug_flag = .false.
-
 
 
 ! Parse the command line arguments with f90getopt library
@@ -94,10 +93,11 @@ CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bon
             impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,debug_flag)
 
 
+
 ! do minimization if -m flag active
+write(*,"(/A/A)") "Energy minimization:","-------------------"
 CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag)
 
-print*, "Hellooooo"
 
 CALL final_phrase()
 

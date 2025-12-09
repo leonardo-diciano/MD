@@ -46,7 +46,7 @@ if (debug_flag) then
     write(*,*) positions
 end if
 ! Useful costants and conversion factors
-pi = 3.14159265
+pi = 3.14159265358979
 kcal_to_kJ= 4.184
 charge_to_kJ_mol =  332.05 / kcal_to_kJ
 
@@ -644,14 +644,27 @@ end if
 end subroutine
 
 
-subroutine get_energy_gradient(positions,tot_pot,forces)
+subroutine get_energy_gradient(positions,tot_pot,forces, gradnorm)
     implicit none
-    real,allocatable, intent(in) :: positions(:,:)
-    real, intent(out) :: tot_pot
+    real, intent(in) :: positions(:,:)
+    real, intent(out) :: tot_pot, gradnorm
     real, allocatable, intent(out) :: forces(:,:)
+    
+    integer :: iatom, icartesian 
 
     CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
             impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,debug_flag)
+
+    gradnorm = 0
+    do iatom=1,n_atoms
+        do icartesian=1,3
+        gradnorm = gradnorm + forces(iatom,icartesian)**2
+        end do
+    end do
+    gradnorm = SQRT(gradnorm)
+
+    write(*,*) "gradnorm =",gradnorm  
+    
 
 end subroutine
 
