@@ -38,7 +38,7 @@ real :: pi, kcal_to_kJ, charge_to_kJ_mol, bond_pot, distance, angle_pot, angle ,
 real :: d12(3), d23(3), d34(3), f_magnitude, epsilon, sigma, f1(3), f3(3), f2(3), f4(3), d12_norm, d23_norm
 integer :: i, j, k, row, a1, a2, a3, a4, pair(2),one_bond_list(n_bonds,2), two_bonds_list(n_angles,2)  
 integer, allocatable :: dummy_pairs(:,:), non_bonded_pairs(:,:), three_bonds_list(:,:) 
-real :: a(3),b(3),a_norm,b_norm, dihedral, cap_A(3), cap_B(3), cap_C(3)
+real :: a(3),b(3),a_norm,b_norm, dihedral, cap_A(3), cap_B(3), cap_C(3), safeguard
 logical :: is_bonded
 
 if (debug_flag) then
@@ -48,7 +48,7 @@ end if
 pi = 3.14159265
 kcal_to_kJ= 4.184
 charge_to_kJ_mol =  332.05 / kcal_to_kJ
-
+safeguard=0.000000001 ! 1e-9
 
 
 allocate(forces(n_atoms,3))
@@ -137,7 +137,7 @@ do i=1, n_angles, 1
     f_magnitude = -2 * angle_params(i,4) * kcal_to_kJ * (angle - (angle_params(i,5) * pi / 180))
 
     ! Calculate the force acting on atom 1 and 3
-    f1 = f_magnitude * (1 / ( sin(angle) * d12_norm )) * &
+    f1 = f_magnitude * (1 / ( sin(angle) * d12_norm + safeguard)) * &
                     (cos(angle) * (d12 / d12_norm) - (d23 / d23_norm ))
                     
     f3 = f_magnitude * (1 / ( sin(angle) * d23_norm )) * &
@@ -229,7 +229,7 @@ do i=1, n_torsions, 1
                 ! torsional barrier                 divider            periodicity
     f_magnitude = tors_params(i,6) * kcal_to_kJ / tors_params(i,5) * tors_params(i,8) * &
                        !  periodicity                  phase in radians
-                    sin(tors_params(i,8) * dihedral - tors_params(i,7) * pi / 180 ) / sin(dihedral)
+                    sin(tors_params(i,8) * dihedral - tors_params(i,7) * pi / 180 ) / (sin(dihedral) + safeguard)
 
     ! Calculate the force on each atom
     f1 = - f_magnitude * cross_product(cap_A,d23)
@@ -326,7 +326,7 @@ do i=1, n_impdie, 1
                   ! torsional barrier                           divider            periodicity
     f_magnitude = impdihedrals_params(i,6) * kcal_to_kJ / impdihedrals_params(i,5) * impdihedrals_params(i,8) * &
                          !  periodicity                          phase 
-                    sin(impdihedrals_params(i,8) * dihedral - impdihedrals_params(i,7) * pi / 180) / sin(dihedral)
+                    sin(impdihedrals_params(i,8) * dihedral - impdihedrals_params(i,7) * pi / 180) / (sin(dihedral) + safeguard)
 
     ! Calculate the force on each atom
     f1 = - f_magnitude * cross_product(cap_A,d23)
