@@ -35,14 +35,16 @@ real, intent(out) :: tot_pot
 real, allocatable, intent(out) :: forces(:,:)
 real :: pi, kcal_to_kJ, charge_to_kJ_mol, bond_pot, distance, angle_pot, angle , die_pot, imp_die_pot, coulomb_pot, lj_pot,& 
         pot_14, pot
-real :: d12(3), d23(3), d34(3), f_magnitude, epsilon, sigma, f1(3), f3(3), f2(3), f4(3), d12_norm, d23_norm
+real :: d12(3), d23(3), d34(3), f_magnitude, epsilon, sigma, f1(3), f3(3), f2(3), f4(3), d12_norm, d23_norm,&
+         start_time, end_time
 integer :: i, j, k, row, a1, a2, a3, a4, pair(2),one_bond_list(n_bonds,2), two_bonds_list(n_angles,2)  
 integer, allocatable :: dummy_pairs(:,:), non_bonded_pairs(:,:), three_bonds_list(:,:) 
-real :: a(3),b(3),a_norm,b_norm, dihedral, cap_A(3), cap_B(3), cap_C(3), safeguard
+real :: a(3),b(3),a_norm,b_norm, dihedral, cap_A(3), cap_B(3), cap_C(3), safeguard, ratio
 logical :: is_bonded
 
 if (debug_flag) then
     write(*,*) "Starting the Force Field evaluation"
+    CALL CPU_TIME(start_time)
 end if
 ! Useful costants and conversion factors
 pi = 3.14159265
@@ -217,8 +219,27 @@ do i=1, n_torsions, 1
     b = cross_product(d23,d34)
     b_norm = SQRT(dot_product(b,b))
 
+    ! calculate the ratio separately and clip to avoid values out of the -1,1 interval 
+    ratio= - dot_product(a,b) / (a_norm * b_norm)
+    if (ratio > 1) then
+        if (ratio - 1 > 0.1) then   ! check that the difference is not too high
+            write(*,*) "Error in the dihedral angle"
+            stop
+        else
+            ratio = 1.0
+        endif
+    elseif (ratio < -1) then
+        if (ratio + 1 < -0.1) then
+            write(*,*) "Error in the dihedral angle"
+            stop
+        else
+            ratio = -1.0
+        endif
+    else
+        ratio = ratio
+    endif
     ! Calculate the dihedral angle
-    dihedral= acos( - dot_product(a,b) / (a_norm * b_norm))
+    dihedral= acos(ratio)
 
     ! Define A, B and C terms
     cap_A = (b / (a_norm * b_norm)) - ((dot_product(a,b) * a) / (a_norm**3 * b_norm))
@@ -290,7 +311,7 @@ if (debug_flag .and. (n_impdie > 0)) then
     write(*,*) ""
     write(*,*) "Improper dihedrals term calculation"
     write(*,FMT='("Atom 1",2X,"Atom 2",2X,"Atom 3",2X,"Atom 4",2X "Dihedral (rad)",2X,"k_phi(kJ/mol)",2X,&
-    &"divider",2X,"periodicity",2X,"phase (rad)",2X,"Potential Energy(kJ/mol)")') 
+    &"periodicity",2X,"phase (rad)",2X,"Potential Energy(kJ/mol)")') 
 end if
 
 imp_die_pot=0   ! initialize the potential
@@ -314,8 +335,27 @@ do i=1, n_impdie, 1
     b = cross_product(d23,d34)
     b_norm = SQRT(dot_product(b,b))
 
+    ! calculate the ratio separately and clip to avoid values out of the -1,1 interval 
+    ratio= - dot_product(a,b) / (a_norm * b_norm)
+    if (ratio > 1) then
+        if (ratio - 1 > 0.1) then
+            write(*,*) "Error in the dihedral angle"  ! check that the difference is not too high
+            stop
+        else
+            ratio = 1.0
+        endif
+    elseif (ratio < -1) then
+        if (ratio + 1 < -0.1) then
+            write(*,*) "Error in the dihedral angle"
+            stop
+        else
+            ratio = -1.0
+        endif
+    else
+        ratio = ratio
+    endif
     ! Calculate the improper dihedral angle
-    dihedral= acos( - dot_product(a,b) / (a_norm * b_norm))
+    dihedral= acos(ratio)
 
     ! Define A, B and C terms
     cap_A = (b / (a_norm * b_norm)) - ((dot_product(a,b) * a) / (a_norm**3 * b_norm))
@@ -323,10 +363,10 @@ do i=1, n_impdie, 1
     cap_C = cross_product(cap_A,d12) + cross_product(cap_B,d34)
 
     ! Calculate the force magnitude * ( 1 / sin(phi))
-                  ! torsional barrier                           divider            periodicity
-    f_magnitude = impdihedrals_params(i,6) * kcal_to_kJ / impdihedrals_params(i,5) * impdihedrals_params(i,8) * &
+                  ! torsional barrier                            periodicity
+    f_magnitude = impdihedrals_params(i,5) * kcal_to_kJ  * impdihedrals_params(i,7) * &
                          !  periodicity                          phase 
-                    sin(impdihedrals_params(i,8) * dihedral - impdihedrals_params(i,7) * pi / 180) / (sin(dihedral) + safeguard)
+                    sin(impdihedrals_params(i,7) * dihedral - impdihedrals_params(i,6) * pi / 180) / (sin(dihedral) + safeguard)
 
     ! Calculate the force on each atom
     f1 = - f_magnitude * cross_product(cap_A,d23)
@@ -341,10 +381,10 @@ do i=1, n_impdie, 1
     forces(a4,1:3) = forces(a4,1:3) + f4
 
     ! Calculate the improper dihedral contributions to potential energy
-             ! torsional barrier                    divider                                            
-    pot = impdihedrals_params(i,6) * kcal_to_kJ / impdihedrals_params(i,5) * &
+             ! torsional barrier                                                               
+    pot = impdihedrals_params(i,5) * kcal_to_kJ * &
                 !          periodicity                              phase
-                (1 + cos(impdihedrals_params(i,8) * dihedral - impdihedrals_params(i,7) * pi / 180))
+                (1 + cos(impdihedrals_params(i,7) * dihedral - impdihedrals_params(i,6) * pi / 180))
 
     imp_die_pot = imp_die_pot + pot
 
@@ -637,6 +677,8 @@ end do
 if (debug_flag) then
         write(*,*) ""
         write(*,*) "Leaving the Force Field calculation module"
+        CALL CPU_TIME(end_time)
+        write(*,*) "Total CPU time: ", end_time - start_time, " seconds"
 end if
 
 

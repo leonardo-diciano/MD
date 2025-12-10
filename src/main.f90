@@ -1,9 +1,9 @@
 
 program MD 
 use f90getopt
-use header_mod
-use parser_mod
-use force_field_mod
+use header_mod, only: pine_tree, final_phrase
+use parser_mod, only: parser
+use force_field_mod, only: force_field_calc
 
 
 implicit none
@@ -13,7 +13,7 @@ character(len=2), allocatable :: atomtypes(:)
 !real, allocatable :: mweights(:),positions(:,:),bond_params(:,:),angle_params(:,:),impdihedrals_params(:,:),&
 !                                    tors_params(:,:),lj_params(:,:), resp_charges(:,:),
 real, allocatable :: mweights(:),positions(:,:), forces(:,:)
-real :: tot_pot
+real :: start_time, end_time, tot_pot
 character(len=1) :: short
 logical :: t_present = .false. , c_present = .false.!, debug_flag = .false.
 
@@ -34,8 +34,6 @@ if (command_argument_count() .eq. 0) then
     write(*,*) "ERROR: Input data are missing. Use options -h or --help for details"
     stop
 end if
-
-CALL pine_tree()
 
 do
     short = getopt("t:c:dhm", opts) 
@@ -85,6 +83,8 @@ else if (c_present .and. (.not. t_present)) then
     stop
 end if
 
+CALL CPU_TIME(start_time)
+CALL pine_tree()
 
 CALL parser(xyzfile,topofile,n_atoms,n_bonds,n_angles,n_impdie,n_torsions,mweights,positions,atomtypes,bond_params,&
                 angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag)
@@ -96,5 +96,6 @@ CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bon
 
 CALL final_phrase()
 
-
+CALL CPU_TIME(end_time)
+write(*,*) "Total CPU time: ", end_time - start_time, " seconds"
 end program
