@@ -201,11 +201,13 @@ end if
 
 count=0
 do
-    read(11,'(A)') line
-    if ( count < 2 ) then !Skip first two lines of XYZ file
+    read(11,'(A)',iostat=io) line
+    if (io /= 0) then
+        exit  
+    elseif ( count < 2 ) then !Skip first two lines of XYZ file
         count = count + 1
         cycle
-    elseif (count == n_atoms + 1) then
+    elseif (count > n_atoms + 1) then
         exit
     else
         !use count-1 to match the atom index

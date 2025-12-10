@@ -43,7 +43,6 @@ logical :: is_bonded
 
 if (debug_flag) then
     write(*,*) "Starting the Force Field evaluation"
-    write(*,*) positions
 end if
 ! Useful costants and conversion factors
 pi = 3.14159265
