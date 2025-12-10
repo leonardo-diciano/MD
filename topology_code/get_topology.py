@@ -86,7 +86,7 @@ atoms hybridization and aromatic nature."""
 atom_assigned_types={} #dict with index and atom types
 list_atom_types_to_print = [None] * mol.GetNumAtoms()
 
-typer_data=pd.read_csv("FF_csv/atom_types.ff",sep=r'\s+',header=None,names=["atom","smarts","type","notes"])
+typer_data=pd.read_csv("atom_types.ff",sep=r'\s+',header=None,names=["atom","smarts","type","notes"])
 data1=typer_data["smarts"].to_list()
 data2=typer_data["type"].to_list()
 smarts_to_type = { data1[i] : data2[i] for i in range(len(data2)) }
