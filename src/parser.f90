@@ -6,14 +6,14 @@ module parser_mod
 contains
 
 subroutine parser(xyzfile,topofile,n_atoms,n_bonds,n_angles,n_impdie,n_torsions,mweights,positions,atomtypes,bond_params,&
-                angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag)
+                angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag, atomnames)
 use definitions, only: wp
 implicit none
 
 character(len=*), intent(in) :: xyzfile, topofile
 logical,intent(in) :: debug_flag
 integer :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
-character(len=2), allocatable, intent(out) :: atomtypes(:)
+character(len=2), allocatable, intent(out) :: atomnames(:), atomtypes(:)
 real(kind=wp), allocatable, intent(out) :: mweights(:),positions(:,:),bond_params(:,:),angle_params(:,:),&
                                            impdihedrals_params(:,:),tors_params(:,:),lj_params(:,:), resp_charges(:,:)
 character(len=256) :: line
@@ -200,6 +200,7 @@ if (debug_flag) then
 end if
 
 
+allocate(atomnames(n_atoms))    !Allocating the arrays for storing data
 count = 0
 do
     read(11,'(A)',iostat = io) line
@@ -212,7 +213,7 @@ do
         exit
     else
         !use count-2 to match the atom index when writing the array
-        read(line, *) dummy_symb, positions(count-1,1), positions(count-1,2), positions(count-1,3)
+        read(line, *) atomnames(count-1), positions(count-1,1), positions(count-1,2), positions(count-1,3)
         count = count + 1
     end if
 end do

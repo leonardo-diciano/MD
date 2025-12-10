@@ -12,14 +12,16 @@ module minimization_mod
 
 contains
 
-    subroutine minimization(positions,n_atoms,tot_pot,forces, debug_flag, xyzfile)
+    subroutine minimization(positions,n_atoms,tot_pot,forces, debug_flag, xyzfile, atomnames)
         use definitions, only: wp
+        use print_mod, only: recprt,recprt2,recprt3
         use force_field_mod, only: get_energy_gradient
 
         implicit none
         logical, intent(in) :: debug_flag
         integer, intent(in) :: n_atoms
         character(len=256), intent(in) :: xyzfile
+        character(len=2), intent(in) :: atomnames(:)
         real(kind=wp), intent(inout) :: tot_pot
         real(kind=wp), allocatable, intent(inout) :: positions(:,:),forces(:,:)
 
@@ -61,6 +63,10 @@ contains
         do while ((ABS(tot_pot-tot_pot_previous)>conv_pot) .and. (iter < maxiter))
         !do while ((ABS(gradnorm-gradnorm_previous)>conv_gradnorm) .or. (ABS(tot_pot-tot_pot_previous)>conv_pot)&
            ! .or. (iter < maxiter)) ! if we want both conv criteria to be met
+            if (debug_flag) then
+                write(*,"(A)") "iteration           U_tot          F_norm           delta"
+            end if
+
             write(*,"(i5,10x,4(F16.8,3x))") iter, tot_pot, tot_pot-tot_pot_previous, gradnorm,&
                                                                 gradnorm-gradnorm_previous
 
@@ -83,9 +89,10 @@ contains
             best_step = - b / (2*a)
 
             if (debug_flag) then
-                write(*,*) ""
-                write(*,*) "Iteration =", iter
-                write(*,*) "delta = ", ABS(gradnorm-gradnorm_previous)
+                !write(*,"(/A)") "In Energy minimization:"
+                write(*,"(/A20,I4)") "Iteration = ", iter
+                write(*,"(A20,F12.8)") "delta forces = ", ABS(gradnorm-gradnorm_previous)
+                write(*,"(A20,F12.8)") "delta energy = ", ABS(tot_pot-tot_pot_previous)
 
                 !write(*,*) " "
                 !write(*,*) "positions_P1 (eta = 0)"
@@ -108,20 +115,16 @@ contains
             end if
 
             positions(:,:) = positions(:,:) + best_step * forces(:,:) / gradnorm
-            
+
             if (debug_flag) then
-                write(*,"(/A)") "Moving the atoms:"
-                do i=1, size(positions,1), 1
-                    write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, best_step * forces(i,1) /gradnorm, &
-                                                best_step*forces(i,2)/gradnorm, best_step*forces(i,3)/gradnorm
-                end do
+                call recprt("Step taken","(*(F12.8,2X))",best_step*forces/gradnorm,n_atoms,3)
             end if
+
 
             gradnorm_previous = gradnorm
             tot_pot_previous = tot_pot
             CALL get_energy_gradient(positions,tot_pot,forces,gradnorm, suppress_flag = .true.)
             iter = iter + 1
-            !write(*,"(/A)") "iteration           U_tot          F_norm           delta"
 
         end do
 
@@ -132,15 +135,13 @@ contains
 
         write(*,"(/A)") "==================================================================="
         write(*,"(a32,i3,a12/)")"Gradient Descent converged in ", iter,"iterations"
-        write(*,*) "Cartesian forces over the atoms:"
-        do i=1, size(forces,1), 1
-            write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)
-        end do
-        write(*,"(/A,F16.8)") "Resulting potential energy:", tot_pot
-        write(*,"(/A)") "New atomic positions:"
-        do i=1, size(positions,1), 1
-            write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, positions(i,1), positions(i,2),positions(i,3)
-        end do
+
+        call recprt2("forces on the atoms after minimization",atomnames(:),positions(:,:),n_atoms)
+
+        write(*,"(A,F16.8)") "Resulting potential energy:", tot_pot
+
+        call recprt2("Atomic coordinates after minimization",atomnames(:),positions(:,:),n_atoms)
+
         write(*,*) "==================================================================="
 
         ! Writing the updated coordinates to an xyzfile
@@ -152,7 +153,7 @@ contains
         write(99,*) n_atoms
         write(99,"(A)") "New atomic positions:"
         do i=1, size(positions,1), 1
-            write(99,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, positions(i,1), positions(i,2),positions(i,3)
+            write(99,FMT='(A3,5X,F15.6,2X,F15.6,2X,F15.6)') atomnames(i), positions(i,1), positions(i,2),positions(i,3)
         end do
 
         write(*,*) "Wrote updated coordinates to ", minimized_xyzfile

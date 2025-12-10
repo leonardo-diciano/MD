@@ -10,7 +10,7 @@ use minimization_mod
 implicit none
 character(len=256) :: xyzfile, topofile
 !integer :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
-character(len=2), allocatable :: atomtypes(:)
+character(len=2), allocatable :: atomtypes(:),atomnames(:)
 !real(kind=wp), allocatable :: mweights(:),positions(:,:),bond_params(:,:),angle_params(:,:),impdihedrals_params(:,:),&
 !                                    tors_params(:,:),lj_params(:,:), resp_charges(:,:),
 real(kind=wp), allocatable :: mweights(:),positions(:,:), forces(:,:)
@@ -89,7 +89,7 @@ end if
 
 
 CALL parser(xyzfile,topofile,n_atoms,n_bonds,n_angles,n_impdie,n_torsions,mweights,positions,atomtypes,bond_params,&
-                angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag)
+                angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag,atomnames)
 
 
 CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
@@ -98,7 +98,7 @@ CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bon
 
 ! do minimization if -m flag active
 if (m_present) then
-    CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag,xyzfile)
+    CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag,xyzfile,atomnames)
 end if 
 
 CALL final_phrase()

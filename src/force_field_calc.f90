@@ -10,6 +10,7 @@ real(kind=wp), allocatable ::bond_params(:,:),angle_params(:,:),impdihedrals_par
                     tors_params(:,:),lj_params(:,:),resp_charges(:,:)
 logical :: debug_flag, suppress_flag
 
+
 contains
 
 function cross_product(a, b) result(cross)
@@ -26,6 +27,7 @@ subroutine force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positio
             impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces, debug_flag, suppress_flag)
 
 use definitions, only: wp
+use print_mod, only: recprt,recprt3
 implicit none
 
 integer, intent(in) :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
@@ -43,9 +45,10 @@ integer, allocatable :: dummy_pairs(:,:), non_bonded_pairs(:,:), three_bonds_lis
 real(kind=wp) :: a(3),b(3),a_norm,b_norm, dihedral, cap_A(3), cap_B(3), cap_C(3)
 logical :: is_bonded
 
+
 if (debug_flag) then
     write(*,*) "Starting the Force Field evaluation"
-    write(*,*) positions
+    call recprt3("Coordinates",positions,n_atoms)
 end if
 ! Useful costants and conversion factors
 pi = 3.14159265358979
@@ -669,8 +672,10 @@ subroutine get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag
     logical, intent(in) :: suppress_flag
     integer :: iatom, icartesian
 
+    !turn the .false. off if you want to see every energy calculation debug print in every iteration of the energy minimization
+
     CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
-            impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,debug_flag,suppress_flag)
+            impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,.false.,suppress_flag)
 
     gradnorm = 0
     do iatom=1,n_atoms
@@ -683,6 +688,7 @@ subroutine get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag
     if (.not. suppress_flag) then
         write(*,*) "gradnorm =",gradnorm
     end if
+
 
 end subroutine
 

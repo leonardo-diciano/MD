@@ -1,1 +1,0 @@
-gfortran minimization_mod.f90 minimization.f90 -o minimization
