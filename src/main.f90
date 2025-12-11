@@ -1,22 +1,19 @@
 
-program MD 
+program MD
+use definitions, only: wp
 use f90getopt
 use header_mod, only: pine_tree, final_phrase
 use parser_mod, only: parser
-use force_field_mod, only: force_field_calc
-
+use force_field_mod 
+use minimization_mod, only: minimization
 
 implicit none
 character(len=256) :: xyzfile, topofile
-!integer :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
-character(len=2), allocatable :: atomtypes(:)
-!real, allocatable :: mweights(:),positions(:,:),bond_params(:,:),angle_params(:,:),impdihedrals_params(:,:),&
-!                                    tors_params(:,:),lj_params(:,:), resp_charges(:,:),
-real, allocatable :: mweights(:),positions(:,:), forces(:,:)
-real :: start_time, end_time, tot_pot
+character(len=2), allocatable :: atomtypes(:),atomnames(:)
+real(kind=wp), allocatable :: mweights(:),positions(:,:), forces(:,:)
+real(kind=wp) :: start_time, end_time, tot_pot, gradnorm
 character(len=1) :: short
-logical :: t_present = .false. , c_present = .false.!, debug_flag = .false.
-
+logical :: t_present = .false. , c_present = .false., m_present = .false.
 
 
 ! Parse the command line arguments with f90getopt library
@@ -36,25 +33,25 @@ if (command_argument_count() .eq. 0) then
 end if
 
 do
-    short = getopt("t:c:dhm", opts) 
+    short = getopt("t:c:dhm", opts)
     select case(short)
         case(char(0))
             exit
         case("t") ! option -t --topology
             t_present=.true.
-            if (trim(optarg) > "") then 
+            if (trim(optarg) > "") then
                 topofile = trim(optarg)
             else
                 stop
             end if
         case("c") ! option -c --coord
             c_present=.true.
-            if (trim(optarg) > "") then 
+            if (trim(optarg) > "") then
                 xyzfile = trim(optarg)
             else
                 stop
             end if
-        case("d")   ! option -d --debug 
+        case("d")   ! option -d --debug
             debug_flag = .true.
         case("h") ! help output
             write(*, '(6(A/),/,4(A/))')&
@@ -69,6 +66,8 @@ do
                 "  main -t file.top -c coord.xyz",&
                 "  main -top=file.top -coord=coord.xyz"
             stop
+        case("m") !minimize if -m flag 
+              m_present = .true.
     end select
 end do
 
@@ -79,7 +78,7 @@ else if (t_present .and. (.not. c_present)) then
     write(*,*) "ERROR: Options -c (--coord) with argument is missing"
     stop
 else if (c_present .and. (.not. t_present)) then
-    write(*,*) "ERROR: Options -t (--top) with argument is mising" 
+    write(*,*) "ERROR: Options -t (--top) with argument is mising"
     stop
 end if
 
@@ -87,12 +86,17 @@ CALL CPU_TIME(start_time)
 CALL pine_tree()
 
 CALL parser(xyzfile,topofile,n_atoms,n_bonds,n_angles,n_impdie,n_torsions,mweights,positions,atomtypes,bond_params,&
-                angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag)
+                angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag,atomnames)
 
 
 CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
-            impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,debug_flag)
+            impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,debug_flag, suppress_flag = .false.)
 
+
+! do minimization if -m flag active
+if (m_present) then
+    CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag,xyzfile,atomnames)
+end if 
 
 CALL final_phrase()
 

@@ -1,0 +1,10 @@
+.DS_Store
+.Trashes
+ehthumbs.db
+Thumbs.db
+.ipynb_checkpoints
+__pycache__               
+.dat
+.vscode
+.o
+.mod
