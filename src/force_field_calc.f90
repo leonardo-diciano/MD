@@ -664,6 +664,7 @@ end subroutine
 
 subroutine get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag)
     use definitions, only: wp
+    use lin_alg, only: mat_norm
     implicit none
     real(kind=wp), intent(in) :: positions(:,:)
     real(kind=wp), intent(out) :: tot_pot, gradnorm
@@ -677,17 +678,11 @@ subroutine get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag
     CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
             impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,.false.,suppress_flag)
 
-    gradnorm = 0
-    do iatom=1,n_atoms
-        do icartesian=1,3
-        gradnorm = gradnorm + forces(iatom,icartesian)**2
-        end do
-    end do
-    gradnorm = SQRT(gradnorm)
+    call mat_norm(forces,n_atoms,gradnorm)
 
-    if (.not. suppress_flag) then
-        write(*,*) "gradnorm =",gradnorm
-    end if
+    !if (.not. suppress_flag) then
+!        write(*,*) "gradnorm =",gradnorm
+    !end if
 
 
 end subroutine

@@ -4,6 +4,7 @@ rm definitions.o definitions.mod f90getopt.o force_field_mod.mod  header.o minim
 
 gfortran -c ../src/definitions.f90 
 gfortran -c ../src/print_mod.f90 
+gfortran -c ../src/lin_alg.f90 
 gfortran -c ../External/f90getopt.F90 
 gfortran -c ../src/header.f90 
 gfortran -c ../src/parser.f90 

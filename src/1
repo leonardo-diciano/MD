@@ -162,22 +162,18 @@ contains
         ! Print convergence message
         write(*,"(/A)") "==================================================================="
         write(*,"(a32,i3,a12/)")"Gradient Descent converged in ", iter,"iterations"
-        
-        if (debug_flag) then
-            call recprt2("forces on the atoms after minimization",atomnames(:),forces(:,:),n_atoms)
-            write(*,"(A,F16.8)") "Resulting potential energy:", tot_pot
-            call recprt2("Atomic coordinates BEFORE minimization",atomnames(:),input_positions(:,:),n_atoms)
-            call recprt2("Atomic coordinates AFTER minimization",atomnames(:),positions(:,:),n_atoms)
-            call recprt2("Change in atomic coordinates THROUGH minimization",atomnames(:),&
+        call recprt2("forces on the atoms after minimization",atomnames(:),forces(:,:),n_atoms)
+        write(*,"(A,F16.8)") "Resulting potential energy:", tot_pot
+        call recprt2("Atomic coordinates BEFORE minimization",atomnames(:),input_positions(:,:),n_atoms)
+        call recprt2("Atomic coordinates AFTER minimization",atomnames(:),positions(:,:),n_atoms)
+        call recprt2("Change in atomic coordinates THROUGH minimization",atomnames(:),&
                                                             positions(:,:)-input_positions(:,:),n_atoms)
-        end if
         call displacement_vec(input_positions,positions,n_atoms,displacement)
         write(*,*) "Displacements"
         do i = 1, n_atoms
             write(*,"(I3,1x,A3,1x,F12.8,1x,A)") i,atomnames(i),displacement(i),"Å"
         end do
-        write(*,"(/A,F12.8,A)") "  sum = ", sum(displacement(:)), " Å"
-        
+        write(*,"/A,F12.8") "sum = ", sum(displacement(:))
         write(*,*) "==================================================================="
 
         ! Writing the updated coordinates to an xyzfile
