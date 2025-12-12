@@ -33,7 +33,7 @@ contains
         integer :: iter,i, dot
         real(kind=wp) :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm_P1, gradnorm_P2, gradnorm_P3, &
                             gradnorm, gradnorm_previous,tot_pot_previous,a,b,best_step, dummy_real
-        real(kind=wp), parameter :: conv_pot=1e-6, conv_gradnorm=1e-4,alpha = 0.1!alpha is in angstrom
+        real(kind=wp), parameter :: conv_pot=1e-6, conv_gradnorm=1e-4,alpha = 1e-5!alpha is in angstrom
         integer, parameter :: maxiter = 300
         logical :: suppress_flag, converged_pot =.false., converged_grad = .false., converged = .false.
         character(len=256) :: minimized_xyzfile
@@ -52,7 +52,7 @@ contains
                        " a 2nd order rational function is fitted; of which the minimum is at the position of   ",&
                       " the optimal eta (best_step). U_P1 is the energhy at initial positions(:,:);",&
                       " U_P2 and P_3 are the energy at positions(:,:) + 0.5 alpha * forces(:,:)/F_tot and 1 alpha respectively." 
-            write(*,"(3(A,F6.4,2x),A)") "alpha = ", alpha, "Å;     0.5*alpha = ", 0.5*alpha, "Å"
+            write(*,"(3(A,F10.8,2x),A)") "alpha = ", alpha, "Å;     0.5*alpha = ", 0.5*alpha, "Å"
             write(*,"(/A)") "iteration  U_tot (U_P1)  delta U   F_tot        delta F       &
                 U_P1   U_P3  [  function to obtain optimal step size    ]  best_step   max displacement"
             write(*,"(A)") "-------------------------------------------------------------------------------------------&
@@ -110,12 +110,12 @@ contains
             positions(:,:) = positions(:,:) + best_step * forces(:,:) / gradnorm
 
             ! uncomment this to see the displacements of all atoms (default: only max value is printed (max displacement))
-            !if (debug_flag) then
+            if (debug_flag) then
                 call recprt2("Forces",atomnames,forces,n_atoms)
                 call recprt2("Step taken",atomnames,best_step*forces/gradnorm,n_atoms)
-                !call mat_norm(forces/gradnorm, n_atoms,dummy_real)
-                !write(*,*) "norm =", dummy_real !forces/gradnorm is a unit vector
-            !end if
+                call mat_norm(forces/gradnorm, n_atoms,dummy_real)
+                write(*,*) "norm =", dummy_real !forces/gradnorm is a unit vector
+            end if
              
             ! save previous values to track progress and convergence
             gradnorm_previous = gradnorm

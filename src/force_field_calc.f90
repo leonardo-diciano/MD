@@ -47,8 +47,7 @@ logical :: is_bonded
 
 
 if (debug_flag) then
-    write(*,*) "Starting the Force Field evaluation"
-    call recprt3("Coordinates",positions,n_atoms)
+    write(*,"(/A/A)") "Starting the Force Field evaluation","-----------------------------------"
 end if
 ! Useful costants and conversion factors
 pi = 3.14159265358979
@@ -681,7 +680,7 @@ subroutine get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag
     call mat_norm(forces,n_atoms,gradnorm)
 
     !if (.not. suppress_flag) then
-!        write(*,*) "gradnorm =",gradnorm
+    !        write(*,*) "gradnorm =",gradnorm
     !end if
 
 
