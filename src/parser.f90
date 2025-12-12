@@ -83,9 +83,9 @@ do
         inImpDieBlock = .true.
         read(line, *) dummy_symb, n_impdie
         if (n_impdie == 0 ) then
-            allocate(impdihedrals_params(0,8))
+            allocate(impdihedrals_params(0,7))
         else
-            allocate(impdihedrals_params(n_impdie,8))
+            allocate(impdihedrals_params(n_impdie,7))
         end if
         count=0
 
@@ -161,7 +161,7 @@ do
         count = count + 1
         read(line, *) dummy_symb, impdihedrals_params(count,1),impdihedrals_params(count,2),impdihedrals_params(count,3), &
                                 impdihedrals_params(count,4),impdihedrals_params(count,5),impdihedrals_params(count,6), &
-                                impdihedrals_params(count,7),impdihedrals_params(count,8)
+                                impdihedrals_params(count,7)           
     elseif (inDieBlock) then
         count = count + 1
         read(line, *) dummy_symb, tors_params(count,1),tors_params(count,2),tors_params(count,3),tors_params(count,4), &
@@ -203,9 +203,9 @@ end if
 allocate(atomnames(n_atoms))    !Allocating the arrays for storing data
 count = 0
 do
-    read(11,'(A)',iostat = io) line
-    if (io/=0) then
-        exit
+    read(11,'(A)',iostat=io) line
+    if (io /= 0) then
+        exit  
     elseif ( count < 2 ) then !Skip first two lines of XYZ file
         count = count + 1
         cycle

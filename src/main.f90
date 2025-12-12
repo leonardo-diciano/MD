@@ -2,21 +2,18 @@
 program MD
 use definitions, only: wp
 use f90getopt
-use header_mod
-use parser_mod
-use force_field_mod
-use minimization_mod
+use header_mod, only: pine_tree, final_phrase
+use parser_mod, only: parser
+use force_field_mod 
+use minimization_mod, only: minimization
 
 implicit none
 character(len=256) :: xyzfile, topofile
-!integer :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
 character(len=2), allocatable :: atomtypes(:),atomnames(:)
-!real(kind=wp), allocatable :: mweights(:),positions(:,:),bond_params(:,:),angle_params(:,:),impdihedrals_params(:,:),&
-!                                    tors_params(:,:),lj_params(:,:), resp_charges(:,:),
 real(kind=wp), allocatable :: mweights(:),positions(:,:), forces(:,:)
-real(kind=wp) :: tot_pot, gradnorm
+real(kind=wp) :: start_time, end_time, tot_pot, gradnorm
 character(len=1) :: short
-logical :: t_present = .false. , c_present = .false., m_present = .false.!, debug_flag = .false.
+logical :: t_present = .false. , c_present = .false., m_present = .false.
 
 
 ! Parse the command line arguments with f90getopt library
@@ -34,8 +31,6 @@ if (command_argument_count() .eq. 0) then
     write(*,*) "ERROR: Input data are missing. Use options -h or --help for details"
     stop
 end if
-
-CALL pine_tree()
 
 do
     short = getopt("t:c:dhm", opts)
@@ -87,6 +82,8 @@ else if (c_present .and. (.not. t_present)) then
     stop
 end if
 
+CALL CPU_TIME(start_time)
+CALL pine_tree()
 
 CALL parser(xyzfile,topofile,n_atoms,n_bonds,n_angles,n_impdie,n_torsions,mweights,positions,atomtypes,bond_params,&
                 angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag,atomnames)
@@ -103,5 +100,6 @@ end if
 
 CALL final_phrase()
 
-
+CALL CPU_TIME(end_time)
+write(*,*) "Total CPU time: ", end_time - start_time, " seconds"
 end program

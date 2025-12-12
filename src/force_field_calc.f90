@@ -39,25 +39,33 @@ real(kind=wp), intent(out) :: tot_pot
 real(kind=wp), allocatable, intent(out) :: forces(:,:)
 real(kind=wp) :: pi, kcal_to_kJ, charge_to_kJ_mol, bond_pot, distance, angle_pot, angle , die_pot, imp_die_pot,&
                  coulomb_pot, lj_pot, pot_14, pot
-real(kind=wp) :: d12(3), d23(3), d34(3), f_magnitude, epsilon, sigma, f1(3), f3(3), f2(3), f4(3), d12_norm, d23_norm
+real(kind=wp) :: d12(3), d23(3), d34(3), f_magnitude, epsilon, sigma, f1(3), f3(3), f2(3), f4(3), d12_norm, d23_norm, &
+         start_time, end_time
 integer :: i, j, k, row, a1, a2, a3, a4, pair(2),one_bond_list(n_bonds,2), two_bonds_list(n_angles,2)
 integer, allocatable :: dummy_pairs(:,:), non_bonded_pairs(:,:), three_bonds_list(:,:)
-real(kind=wp) :: a(3),b(3),a_norm,b_norm, dihedral, cap_A(3), cap_B(3), cap_C(3)
+real(kind=wp) :: a(3),b(3),a_norm,b_norm, dihedral, cap_A(3), cap_B(3), cap_C(3), safeguard, ratio
 logical :: is_bonded
 
 
 if (debug_flag) then
+<<<<<<< HEAD
     write(*,"(/A/A)") "Starting the Force Field evaluation","-----------------------------------"
+=======
+    write(*,*) "Starting the Force Field evaluation"
+    CALL CPU_TIME(start_time)
+    call recprt3("Coordinates",positions,n_atoms)
+>>>>>>> main
 end if
 ! Useful costants and conversion factors
 pi = 3.14159265358979
 kcal_to_kJ= 4.184
 charge_to_kJ_mol =  332.05 / kcal_to_kJ
-
+safeguard=0.000000001 ! 1e-9
 
 
 allocate(forces(n_atoms,3))
 forces(:,:) = 0         ! initialize the force vector
+tot_pot=0
 
 ! Bonds term
 
@@ -143,7 +151,7 @@ do i=1, n_angles, 1
     f_magnitude = -2 * angle_params(i,4) * kcal_to_kJ * (angle - (angle_params(i,5) * pi / 180))
 
     ! Calculate the force acting on atom 1 and 3
-    f1 = f_magnitude * (1 / ( sin(angle) * d12_norm )) * &
+    f1 = f_magnitude * (1 / ( sin(angle) * d12_norm + safeguard)) * &
                     (cos(angle) * (d12 / d12_norm) - (d23 / d23_norm ))
 
     f3 = f_magnitude * (1 / ( sin(angle) * d23_norm )) * &
@@ -224,8 +232,27 @@ do i=1, n_torsions, 1
     b = cross_product(d23,d34)
     b_norm = SQRT(dot_product(b,b))
 
+    ! calculate the ratio separately and clip to avoid values out of the -1,1 interval 
+    ratio= - dot_product(a,b) / (a_norm * b_norm)
+    if (ratio > 1) then
+        if (ratio - 1 > 0.1) then   ! check that the difference is not too high
+            write(*,*) "Error in the dihedral angle"
+            stop
+        else
+            ratio = 1.0
+        endif
+    elseif (ratio < -1) then
+        if (ratio + 1 < -0.1) then
+            write(*,*) "Error in the dihedral angle"
+            stop
+        else
+            ratio = -1.0
+        endif
+    else
+        ratio = ratio
+    endif
     ! Calculate the dihedral angle
-    dihedral= acos( - dot_product(a,b) / (a_norm * b_norm))
+    dihedral= acos(ratio)
 
     ! Define A, B and C terms
     cap_A = (b / (a_norm * b_norm)) - ((dot_product(a,b) * a) / (a_norm**3 * b_norm))
@@ -236,7 +263,7 @@ do i=1, n_torsions, 1
                 ! torsional barrier                 divider            periodicity
     f_magnitude = tors_params(i,6) * kcal_to_kJ / tors_params(i,5) * tors_params(i,8) * &
                        !  periodicity                  phase in radians
-                    sin(tors_params(i,8) * dihedral - tors_params(i,7) * pi / 180 ) / sin(dihedral)
+                    sin(tors_params(i,8) * dihedral - tors_params(i,7) * pi / 180 ) / (sin(dihedral) + safeguard)
 
     ! Calculate the force on each atom
     f1 = - f_magnitude * cross_product(cap_A,d23)
@@ -298,7 +325,7 @@ if (debug_flag .and. (n_impdie > 0)) then
     write(*,*) ""
     write(*,*) "Improper dihedrals term calculation"
     write(*,FMT='("Atom 1",2X,"Atom 2",2X,"Atom 3",2X,"Atom 4",2X "Dihedral (rad)",2X,"k_phi(kJ/mol)",2X,&
-    &"divider",2X,"periodicity",2X,"phase (rad)",2X,"Potential Energy(kJ/mol)")')
+    &"periodicity",2X,"phase (rad)",2X,"Potential Energy(kJ/mol)")') 
 end if
 
 imp_die_pot=0   ! initialize the potential
@@ -322,8 +349,27 @@ do i=1, n_impdie, 1
     b = cross_product(d23,d34)
     b_norm = SQRT(dot_product(b,b))
 
+    ! calculate the ratio separately and clip to avoid values out of the -1,1 interval 
+    ratio= - dot_product(a,b) / (a_norm * b_norm)
+    if (ratio > 1) then
+        if (ratio - 1 > 0.1) then
+            write(*,*) "Error in the dihedral angle"  ! check that the difference is not too high
+            stop
+        else
+            ratio = 1.0
+        endif
+    elseif (ratio < -1) then
+        if (ratio + 1 < -0.1) then
+            write(*,*) "Error in the dihedral angle"
+            stop
+        else
+            ratio = -1.0
+        endif
+    else
+        ratio = ratio
+    endif
     ! Calculate the improper dihedral angle
-    dihedral= acos( - dot_product(a,b) / (a_norm * b_norm))
+    dihedral= acos(ratio)
 
     ! Define A, B and C terms
     cap_A = (b / (a_norm * b_norm)) - ((dot_product(a,b) * a) / (a_norm**3 * b_norm))
@@ -331,10 +377,10 @@ do i=1, n_impdie, 1
     cap_C = cross_product(cap_A,d12) + cross_product(cap_B,d34)
 
     ! Calculate the force magnitude * ( 1 / sin(phi))
-                  ! torsional barrier                           divider            periodicity
-    f_magnitude = impdihedrals_params(i,6) * kcal_to_kJ / impdihedrals_params(i,5) * impdihedrals_params(i,8) * &
-                         !  periodicity                          phase
-                    sin(impdihedrals_params(i,8) * dihedral - impdihedrals_params(i,7) * pi / 180) / sin(dihedral)
+                  ! torsional barrier                            periodicity
+    f_magnitude = impdihedrals_params(i,5) * kcal_to_kJ  * impdihedrals_params(i,7) * &
+                         !  periodicity                          phase 
+                    sin(impdihedrals_params(i,7) * dihedral - impdihedrals_params(i,6) * pi / 180) / (sin(dihedral) + safeguard)
 
     ! Calculate the force on each atom
     f1 = - f_magnitude * cross_product(cap_A,d23)
@@ -349,17 +395,16 @@ do i=1, n_impdie, 1
     forces(a4,1:3) = forces(a4,1:3) + f4
 
     ! Calculate the improper dihedral contributions to potential energy
-             ! torsional barrier                    divider
-    pot = impdihedrals_params(i,6) * kcal_to_kJ / impdihedrals_params(i,5) * &
+             ! torsional barrier                                                               
+    pot = impdihedrals_params(i,5) * kcal_to_kJ * &
                 !          periodicity                              phase
-                (1 + cos(impdihedrals_params(i,8) * dihedral - impdihedrals_params(i,7) * pi / 180))
+                (1 + cos(impdihedrals_params(i,7) * dihedral - impdihedrals_params(i,6) * pi / 180))
 
     imp_die_pot = imp_die_pot + pot
 
     if (debug_flag) then
         write(*,FMT='(2X,I3,4X,I3,4X,I3,4X,I3,3X,F10.6,2X,F15.6,2X,F10.6,2X,F15.6,2X,F15.6,2X,F15.6)') a1, a2, a3, a4, dihedral,&
-            impdihedrals_params(i,6) * kcal_to_kJ, impdihedrals_params(i,5), impdihedrals_params(i,8),&
-            impdihedrals_params(i,7) * pi / 180, pot
+            impdihedrals_params(i,5) * kcal_to_kJ, impdihedrals_params(i,7), impdihedrals_params(i,6) * pi / 180, pot
     end if
 
 end do
@@ -457,12 +502,12 @@ do i=1, size(non_bonded_pairs,dim=1), 1      ! Iterate over the number of non-bo
     ! Calculate the distance between the atoms
     distance = SQRT(dot_product(positions(a2,1:3)-positions(a1,1:3),positions(a2,1:3)-positions(a1,1:3)))
 
-    if (distance < 6 ) then ! Using a cutoff radius of 6 Å
+    if (distance < 10 ) then ! Using a cutoff radius of 10 Å
         ! Calculate the parameters following Lorentz/Berthelot mixing rules
                         ! epsilon a1       epsilon a2
         epsilon = SQRT(lj_params(a1,3) * lj_params(a2,3)) * kcal_to_kJ
                     ! sigma a1           sigma a2
-        sigma = 0.5 * (lj_params(a1,2) + lj_params(a2,2))
+        sigma =  0.5 * (lj_params(a1,2) * 2**(-1/6) + lj_params(a2,2) * 2**(-1/6))
 
         ! Calculate the force magnitude
         f_magnitude = 24 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )
@@ -584,7 +629,7 @@ do i=1, size(three_bonds_list,dim=1) , 1
                         ! epsilon a1       epsilon a2
         epsilon = SQRT(lj_params(a1,3) * lj_params(a2,3)) * kcal_to_kJ
                     ! sigma a1           sigma a2
-        sigma = 0.5 * (lj_params(a1,2) + lj_params(a2,2))
+        sigma =  0.5 * (lj_params(a1,2) * 2**(-1/6) + lj_params(a2,2) * 2**(-1/6))
 
         ! Calculate the force magnitude
         f_magnitude = 12 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )
@@ -655,6 +700,8 @@ end if
 if (debug_flag) then
         write(*,*) ""
         write(*,*) "Leaving the Force Field calculation module"
+        CALL CPU_TIME(end_time)
+        write(*,*) "Force Field Calculation CPU time: ", end_time - start_time, " seconds"
 end if
 
 

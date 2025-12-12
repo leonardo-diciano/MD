@@ -20,8 +20,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 import pandas as pd
 import numpy as np
-from force_field_data import mass_dict, bond_params, angle_params, improper_dihedral_params, dihedral_params, LJ_params
-import sys
+from force_field_data import mass_dict, bond_params, angle_params, improper_dihedral_params, dihedral_params, LJ_params, smarts_to_type
 import itertools
 import warnings
 import psi4
@@ -62,11 +61,11 @@ warnings.filterwarnings('ignore',category=SyntaxWarning)
 
 #SMILES or XYZ file run mode
 if args.smi :
-    mol=Chem.MolFromSmiles(sys.argv[2])
+    mol=Chem.MolFromSmiles(args.smi)
     mol=Chem.AddHs(mol)
     AllChem.EmbedMolecule(mol)
 elif args.pdb:
-    mol=Chem.MolFromPDBFile(sys.argv[2],removeHs=False)
+    mol=Chem.MolFromPDBFile(args.pdb,removeHs=False)
     AllChem.SanitizeMol(mol)
 else:
     raise KeyError
@@ -86,14 +85,7 @@ atoms hybridization and aromatic nature."""
 atom_assigned_types={} #dict with index and atom types
 list_atom_types_to_print = [None] * mol.GetNumAtoms()
 
-typer_data=pd.read_csv("FF_csv/atom_types.ff",sep=r'\s+',header=None,names=["atom","smarts","type","notes"])
-data1=typer_data["smarts"].to_list()
-data2=typer_data["type"].to_list()
-smarts_to_type = { data1[i] : data2[i] for i in range(len(data2)) }
-smarts_to_type_sorted = dict(
-    sorted(smarts_to_type.items(), key=lambda x: -len(x[0]))
-)
-for smarts, atom_type in smarts_to_type_sorted.items():
+for smarts, atom_type in smarts_to_type.items():
     pattern = Chem.MolFromSmarts(smarts)
     if pattern is None:
         raise ValueError(f"Invalid SMARTS: {smarts}")
@@ -150,9 +142,12 @@ for atom_i in mol.GetAtoms():
             symbols.append(i.GetIdx())
         pairs = list(itertools.combinations(symbols, 2))
         for pair in pairs:
-           aa=f"{atom_assigned_types[pair[0]]}-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[pair[1]]}"
-           par_aa=angle_params[aa]
-           list_angle_params_to_print.append((aa,pair[0]+1,atom_i.GetIdx()+1,pair[1]+1,par_aa[0],par_aa[1])) 
+            aa=f"{atom_assigned_types[pair[0]]}-{atom_assigned_types[atom_i.GetIdx()]}-{atom_assigned_types[pair[1]]}"
+            if aa in angle_params.keys():
+                par_aa=angle_params[aa]
+                list_angle_params_to_print.append((aa,pair[0]+1,atom_i.GetIdx()+1,pair[1]+1,par_aa[0],par_aa[1]))
+            else:
+                continue
     else:
         continue
 

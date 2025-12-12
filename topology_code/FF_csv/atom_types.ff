@@ -269,7 +269,6 @@ atom [OX1]              						    o  "sp2 O"
 atom [OX1][#16]              						    o  "sp2 O"
 atom [OX2]([#6,#7])[#6,#7]            					    os "sp2 O"
 atom [OX2]              						    os "sp3 O in esters and ethers"
-atom [#8X2]              						    os "sp3 O in esters and ethers"
 atom [OX2;R]([#6])[#6] 							    os
 atom [OX2&H0]([#6])[#6] 						    os
 atom [OX2]([#6])[#6] 							    os
