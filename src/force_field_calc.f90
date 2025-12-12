@@ -61,6 +61,7 @@ safeguard=0.000000001 ! 1e-9
 
 allocate(forces(n_atoms,3))
 forces(:,:) = 0         ! initialize the force vector
+tot_pot=0
 
 ! Bonds term
 
@@ -399,8 +400,7 @@ do i=1, n_impdie, 1
 
     if (debug_flag) then
         write(*,FMT='(2X,I3,4X,I3,4X,I3,4X,I3,3X,F10.6,2X,F15.6,2X,F10.6,2X,F15.6,2X,F15.6,2X,F15.6)') a1, a2, a3, a4, dihedral,&
-            impdihedrals_params(i,6) * kcal_to_kJ, impdihedrals_params(i,5), impdihedrals_params(i,8),&
-            impdihedrals_params(i,7) * pi / 180, pot
+            impdihedrals_params(i,5) * kcal_to_kJ, impdihedrals_params(i,7), impdihedrals_params(i,6) * pi / 180, pot
     end if
 
 end do
@@ -498,12 +498,12 @@ do i=1, size(non_bonded_pairs,dim=1), 1      ! Iterate over the number of non-bo
     ! Calculate the distance between the atoms
     distance = SQRT(dot_product(positions(a2,1:3)-positions(a1,1:3),positions(a2,1:3)-positions(a1,1:3)))
 
-    if (distance < 6 ) then ! Using a cutoff radius of 6 Å
+    if (distance < 10 ) then ! Using a cutoff radius of 10 Å
         ! Calculate the parameters following Lorentz/Berthelot mixing rules
                         ! epsilon a1       epsilon a2
         epsilon = SQRT(lj_params(a1,3) * lj_params(a2,3)) * kcal_to_kJ
                     ! sigma a1           sigma a2
-        sigma = 0.5 * (lj_params(a1,2) + lj_params(a2,2))
+        sigma =  0.5 * (lj_params(a1,2) * 2**(-1/6) + lj_params(a2,2) * 2**(-1/6))
 
         ! Calculate the force magnitude
         f_magnitude = 24 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )
@@ -625,7 +625,7 @@ do i=1, size(three_bonds_list,dim=1) , 1
                         ! epsilon a1       epsilon a2
         epsilon = SQRT(lj_params(a1,3) * lj_params(a2,3)) * kcal_to_kJ
                     ! sigma a1           sigma a2
-        sigma = 0.5 * (lj_params(a1,2) + lj_params(a2,2))
+        sigma =  0.5 * (lj_params(a1,2) * 2**(-1/6) + lj_params(a2,2) * 2**(-1/6))
 
         ! Calculate the force magnitude
         f_magnitude = 12 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )
@@ -697,7 +697,7 @@ if (debug_flag) then
         write(*,*) ""
         write(*,*) "Leaving the Force Field calculation module"
         CALL CPU_TIME(end_time)
-        write(*,*) "Total CPU time: ", end_time - start_time, " seconds"
+        write(*,*) "Force Field Calculation CPU time: ", end_time - start_time, " seconds"
 end if
 
 

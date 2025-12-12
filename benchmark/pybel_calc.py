@@ -6,7 +6,7 @@ start = time.process_time()
 
 mol = next(pybel.readfile("pdb", sys.argv[1]))
 mol.OBMol.PerceiveBondOrders()
-ff = pybel._forcefields["GAFF"]
+ff = pybel._forcefields["gaff"]
 if not ff.Setup(mol.OBMol):
     raise RuntimeError("GAFF setup failed for this molecule")
 
