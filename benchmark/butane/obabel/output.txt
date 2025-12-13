@@ -1,2 +1,0 @@
-Single-point GAFF energy: 19.291298444232652 kJ/mol
-CPU time: 0.004233999999999988 seconds
