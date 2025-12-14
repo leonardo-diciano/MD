@@ -10,4 +10,3 @@ __pycache__
 *.mod
 benchmark
 md_program
-build/
