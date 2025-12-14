@@ -101,7 +101,7 @@ if (m_present) then
 end if
 
 
-call init_v()
+!call init_v()
 
 
 

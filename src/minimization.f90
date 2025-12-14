@@ -24,11 +24,10 @@ contains
         character(len=256), intent(in) :: xyzfile
         character(len=2), intent(in) :: atomnames(:)
         real(kind=wp), intent(inout) :: tot_pot
-        real(kind=wp), allocatable, intent(inout) :: positions(:,:),forces(:,:)
+        real(kind=wp), intent(inout) :: forces(n_atoms,3),positions(n_atoms,3)
 
-        ! Forces are allocated in the get_energy_gradient subroutine. They need to be deallocated outside
-        real(kind=wp), allocatable :: forces_P1(:,:), forces_P2(:,:), forces_P3(:,:), positions_P1(:,:),&
-                            positions_P2(:,:),positions_P3(:,:) 
+        real(kind=wp) :: forces_P1(n_atoms,3), forces_P2(n_atoms,3), forces_P3(n_atoms,3)
+         real(kind=wp), allocatable :: positions_P1(:,:),positions_P2(:,:),positions_P3(:,:)
         real(kind=wp) :: input_positions(n_atoms,3)
         integer :: iter,i, dot
         real(kind=wp) :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm_P1, gradnorm_P2, gradnorm_P3, &
@@ -51,14 +50,14 @@ contains
             write(*,"(A/A/A)") "Three points (U_P1, U_P2, U_P3) in the direction of the gradient vector are calculated,",&
                        " a 2nd order rational function is fitted; of which the minimum is at the position of   ",&
                       " the optimal eta (best_step). U_P1 is the energhy at initial positions(:,:);",&
-                      " U_P2 and P_3 are the energy at positions(:,:) + 0.5 alpha * forces(:,:)/F_tot and 1 alpha respectively." 
+                      " U_P2 and P_3 are the energy at positions(:,:) + 0.5 alpha * forces(:,:)/F_tot and 1 alpha respectively."
             write(*,"(3(A,F10.8,2x),A)") "alpha = ", alpha, "Å;     0.5*alpha = ", 0.5*alpha, "Å"
             write(*,"(/A)") "iteration  U_tot (U_P1)  delta U   F_tot        delta F       &
                 U_P1   U_P3  [  function to obtain optimal step size    ]  best_step   max displacement"
             write(*,"(A)") "-------------------------------------------------------------------------------------------&
                             ------------------------------------------------"
-        end if            
-        
+        end if
+
         input_positions(:,:) = positions(:,:)
 
         call get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag = .true.)
@@ -74,7 +73,7 @@ contains
         allocate(positions_P3(n_atoms,3))
 
         iter = 0
- 
+
         ! Print initial data into iteration table
         if (.not. debug_flag) then
             write(*,"(i5,10x,2(F16.8,13x,A,8x))") iter, tot_pot,"/" , gradnorm,"/"
@@ -84,10 +83,10 @@ contains
         end if
 
 
-        ! START ITERATING        
+        ! START ITERATING
         do while (.not. converged)
             iter = iter + 1
-            
+
             ! get coordinates for the three points used in the line search:
             positions_P1(:,:) = positions(:,:)
             positions_P2(:,:) = positions(:,:) + 0.5 * alpha * forces(:,:) / gradnorm
@@ -95,11 +94,8 @@ contains
 
             ! get energies for the three points used in the line search:
             CALL get_energy_gradient(positions_P1,tot_pot_P1,forces_P1,gradnorm_P1,suppress_flag = .true.)
-            deallocate(forces_P1)
             CALL get_energy_gradient(positions_P2,tot_pot_P2,forces_P2,gradnorm_P2,suppress_flag = .true.)
-            deallocate(forces_P2)
             CALL get_energy_gradient(positions_P3,tot_pot_P3,forces_P3,gradnorm_P3,suppress_flag = .true.)
-            deallocate(forces_P3)
 
             ! fitting a parabola through the three points with respect to the step size; find x=best_step of minimum
             b = ((tot_pot_P3-tot_pot_P1) * (0.5*alpha)**2 - (tot_pot_P2 - tot_pot_P1)*alpha**2) / (-0.5*alpha**2 *0.5*alpha)
@@ -116,7 +112,7 @@ contains
                 call mat_norm(forces/gradnorm, n_atoms,dummy_real)
                 write(*,*) "norm =", dummy_real !forces/gradnorm is a unit vector
             end if
-             
+
             ! save previous values to track progress and convergence
             gradnorm_previous = gradnorm
             tot_pot_previous = tot_pot
@@ -135,10 +131,10 @@ contains
                     tot_pot_P1, tot_pot_P3, "  [ f(x) = (", a,") x^2 + (",b,") x ]", &
                     best_step, maxval(best_step*forces(:,:)/gradnorm)
             end if
-           
 
-            ! Check for convergence 
-            if (ABS(gradnorm-gradnorm_previous)<conv_gradnorm .and. .not. converged_grad) then 
+
+            ! Check for convergence
+            if (ABS(gradnorm-gradnorm_previous)<conv_gradnorm .and. .not. converged_grad) then
                 write(*,*) "gradient converged"
                 converged_grad = .true.
             end if
@@ -162,7 +158,7 @@ contains
         ! Print convergence message
         write(*,"(/A)") "==================================================================="
         write(*,"(a32,i3,a12/)")"Gradient Descent converged in ", iter,"iterations"
-        
+
         if (debug_flag) then
             call recprt2("forces on the atoms after minimization",atomnames(:),forces(:,:),n_atoms)
             write(*,"(A,F16.8)") "Resulting potential energy:", tot_pot
@@ -177,7 +173,7 @@ contains
             write(*,"(I3,1x,A3,1x,F12.8,1x,A)") i,atomnames(i),displacement(i),"Å"
         end do
         write(*,"(/A,F12.8,A)") "  sum = ", sum(displacement(:)), " Å"
-        
+
         write(*,*) "==================================================================="
 
         ! Writing the updated coordinates to an xyzfile
@@ -192,7 +188,7 @@ contains
 
         write(*,*) "Wrote updated coordinates to ", minimized_xyzfile
 
-    
+
     end subroutine minimization
 
 

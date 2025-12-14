@@ -32,10 +32,10 @@ implicit none
 
 integer, intent(in) :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
 logical, intent(in) :: debug_flag,suppress_flag
-real(kind=wp), intent(in) :: positions(n_atoms,3),forces(n_atoms,3),bond_params(n_bonds,4),angle_params(n_angles,5),&
+real(kind=wp), intent(in) :: positions(n_atoms,3),bond_params(n_bonds,4),angle_params(n_angles,5),&
                     impdihedrals_params(n_impdie,8),tors_params(n_torsions,8),lj_params(n_atoms,3),resp_charges(n_atoms,2)
 
-real(kind=wp), intent(out) :: tot_pot
+real(kind=wp), intent(out) :: tot_pot, forces(n_atoms,3)
 real(kind=wp) :: pi, kcal_to_kJ, charge_to_kJ_mol, bond_pot, distance, angle_pot, angle , die_pot, imp_die_pot,&
                  coulomb_pot, lj_pot, pot_14, pot
 real(kind=wp) :: d12(3), d23(3), d34(3), f_magnitude, epsilon, sigma, f1(3), f3(3), f2(3), f4(3), d12_norm, d23_norm, &
@@ -704,10 +704,9 @@ subroutine get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag
     use lin_alg, only: mat_norm
     implicit none
     real(kind=wp), intent(in) :: positions(:,:)
-    real(kind=wp), intent(out) :: tot_pot, gradnorm
-    real(kind=wp), allocatable, intent(out) :: forces(:,:)
-
     logical, intent(in) :: suppress_flag
+    real(kind=wp), intent(out) :: tot_pot, gradnorm, forces(n_atoms,3)
+
     integer :: iatom, icartesian
 
     !turn the .false. off if you want to see every energy calculation debug print in every iteration of the energy minimization
