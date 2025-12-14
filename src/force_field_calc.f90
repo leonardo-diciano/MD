@@ -380,7 +380,7 @@ do i=1, n_impdie, 1
     f1 = f_magnitude * cross_product(cap_A,d23)
     f4 = f_magnitude * cross_product(d23,cap_B)
     f2 = - f1 + (f_magnitude * (cross_product(d12,cap_A) + cross_product(cap_B,d34)))
-    f3 = - f4 - (f_magnitude * (cross_product(cap_A,d12) + cross_product(cap_B,d34)))
+    f3 = - f4 - (f_magnitude * (cross_product(d12,cap_A) + cross_product(cap_B,d34)))
 
     ! Update the force vector
     forces(a1,1:3) = forces(a1,1:3) + f1
