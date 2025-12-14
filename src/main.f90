@@ -4,7 +4,7 @@ use definitions, only: wp
 use f90getopt
 use header_mod, only: pine_tree, final_phrase
 use parser_mod, only: parser
-use force_field_mod 
+use force_field_mod
 use minimization_mod, only: minimization
 
 implicit none
@@ -66,7 +66,7 @@ do
                 "  main -t file.top -c coord.xyz",&
                 "  main -top=file.top -coord=coord.xyz"
             stop
-        case("m") !minimize if -m flag 
+        case("m") !minimize if -m flag
               m_present = .true.
     end select
 end do
@@ -89,6 +89,8 @@ CALL parser(xyzfile,topofile,n_atoms,n_bonds,n_angles,n_impdie,n_torsions,mweigh
                 angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag,atomnames)
 
 
+
+allocate(forces(n_atoms,3))
 CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
             impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,debug_flag, suppress_flag = .false.)
 
@@ -96,9 +98,18 @@ CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bon
 ! do minimization if -m flag active
 if (m_present) then
     CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag,xyzfile,atomnames)
-end if 
+end if
+
+
+call init_v()
+
+
+
+deallocate(forces)
 
 CALL final_phrase()
+
+
 
 CALL CPU_TIME(end_time)
 write(*,*) "Total CPU time: ", end_time - start_time, " seconds"
