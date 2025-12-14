@@ -6,5 +6,8 @@ Thumbs.db
 __pycache__               
 .dat
 .vscode
-.o
-.mod
+*.o
+*.mod
+benchmark
+md_program
+build/

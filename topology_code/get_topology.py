@@ -50,6 +50,7 @@ if args.constraints and not args.resp:
 elif args.constraints and args.resp:
     try:
         constraints = ast.literal_eval(args.constraints)
+        print(constraints)
     except:
         constraints = None
 else:
@@ -155,7 +156,7 @@ if args.debug:
     print(f"Angle parameters assigned\n")
     print("k_theta is the angle force constant in kcal/mol/rad^2")
     print(f"theta_eq is the equilibrium angle in deg\n")
-    print_df=pd.DataFrame(list_angle_params_to_print,columns=["Atom 1","Atom 2","Atom 3","k_theta","theta_eq"])
+    print_df=pd.DataFrame(list_angle_params_to_print,columns=["Type","Atom 1","Atom 2","Atom 3","k_theta","theta_eq"])
     print(print_df.to_csv(sep="\t",index=False,))
 else:
     print(f"Angle parameters assigned: {len(list_angle_params_to_print)}")
@@ -220,7 +221,7 @@ if args.debug:
     print("div is the divider for the energy barrier")
     print("phase is the phase angle in deg")
     print(f"n is the periodicity\n")
-    print_df=pd.DataFrame(list_dihedrals_params_to_print,columns=["Atom 1","Atom 2","Atom 3","Atom 4","divider","k_phi","phase","n"])
+    print_df=pd.DataFrame(list_dihedrals_params_to_print,columns=["Type","Atom 1","Atom 2","Atom 3","Atom 4","divider","k_phi","phase","n"])
     print(print_df.to_csv(sep="\t",index=False,))
 else:
     print(f"Proper dihedrals parameters assigned: {len(list_dihedrals_params_to_print)}")
@@ -288,7 +289,7 @@ if args.debug:
     print("div is the divider for the energy barrier")
     print("phase is the phase angle in deg")
     print(f"n is the periodicity\n")
-    print_df=pd.DataFrame(list_impro_dihedrals_params_to_print,columns=["Atom 1","Atom 2","Atom 3","Atom 4","divider","k_phi","phase","n"])
+    print_df=pd.DataFrame(list_impro_dihedrals_params_to_print,columns=["Type","Atom 1","Atom 2","Atom 3","Atom 4","divider","k_phi","phase","n"])
     print(print_df.to_csv(sep="\t",index=False,))
 else:
     print(f"Improper dihedrals parameters assigned: {len(list_impro_dihedrals_params_to_print)}")
@@ -330,7 +331,7 @@ if args.resp:
             'RESTRAINT'          : True,
             'IHFREE'             : False,
             'WEIGHT'             : [1, 1, 1],
-            'BASIS_ESP'          : "STO-3G"
+            'BASIS_ESP'          : "6-31G*"
             }
     # Call for first stage fit
     charges1 = resp.resp([psi_mol], options)
@@ -338,7 +339,7 @@ if args.resp:
     options['RESP_A'] = 0.0001
     # Add constraint for atoms fixed in second stage fit
     constraint_charge = []
-    for i in range(len(charges1)):
+    for i in range(len(charges1[1])):
         constraint_charge.append([charges1[1][i], [i+1]])
     options['constraint_charge'] = constraint_charge
     if constraints:

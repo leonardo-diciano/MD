@@ -79,15 +79,15 @@ do i=1, n_bonds, 1
     a2 = int(bond_params(i,2))
     one_bond_list(i,:)=[a1, a2]
     ! Calculate distance between a1 and a2
-    distance = SQRT(dot_product(positions(a1,1:3) - positions(a2,1:3), positions(a1,1:3) - positions(a2,1:3)))
+    distance = SQRT(dot_product(positions(a2,1:3) - positions(a1,1:3), positions(a2,1:3) - positions(a1,1:3)))
 
     ! Calculate the force magnitude
                     !force constant                            equilibrium distance
-    f_magnitude = - 2 * bond_params(i,3) * kcal_to_kJ * (distance - bond_params(i,4))
+    f_magnitude = -  2 * bond_params(i,3) * kcal_to_kJ * (distance - bond_params(i,4))
 
     ! Calculate the force on each atom and update the force vector
-    forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
-    forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
+    forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
+    forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
 
     ! Calculate the bond contributions to potential energy
     !      force constant                           equilibrium distance
@@ -148,9 +148,9 @@ do i=1, n_angles, 1
 
     ! Calculate the force acting on atom 1 and 3
     f1 = f_magnitude * (1 / ( sin(angle) * d12_norm + safeguard)) * &
-                    (cos(angle) * (d12 / d12_norm) - (d23 / d23_norm ))
+                    ( cos(angle) * (d12 / d12_norm) - (d23 / d23_norm ))
 
-    f3 = f_magnitude * (1 / ( sin(angle) * d23_norm )) * &
+    f3 = f_magnitude * (1 / ( sin(angle) * d23_norm + safeguard)) * &
                     (cos(angle) * (d23 / d23_norm) - (d12 / d12_norm))
 
     ! Update the force vector
@@ -218,8 +218,8 @@ do i=1, n_torsions, 1
     end if
 
     ! Calculate bond/distance vectors
-    d12 = positions(a1,1:3) - positions(a2,1:3)
-    d23 = positions(a2,1:3) - positions(a3,1:3)
+    d12 = positions(a2,1:3) - positions(a1,1:3)
+    d23 = positions(a3,1:3) - positions(a2,1:3)
     d34 = positions(a4,1:3) - positions(a3,1:3)
 
     ! Define a (and b) as cross product and its norm a_norm (and b_norm)
@@ -229,7 +229,7 @@ do i=1, n_torsions, 1
     b_norm = SQRT(dot_product(b,b))
 
     ! calculate the ratio separately and clip to avoid values out of the -1,1 interval 
-    ratio= - dot_product(a,b) / (a_norm * b_norm)
+    ratio= dot_product(a,b) / (a_norm * b_norm)
     if (ratio > 1) then
         if (ratio - 1 > 0.1) then   ! check that the difference is not too high
             write(*,*) "Error in the dihedral angle"
@@ -250,10 +250,9 @@ do i=1, n_torsions, 1
     ! Calculate the dihedral angle
     dihedral= acos(ratio)
 
-    ! Define A, B and C terms
-    cap_A = (b / (a_norm * b_norm)) - ((dot_product(a,b) * a) / (a_norm**3 * b_norm))
-    cap_B = (a / (a_norm * b_norm)) - ((dot_product(a,b) * b) / (a_norm * b_norm**3 ))
-    cap_C = cross_product(cap_A,d12) + cross_product(cap_B,d34)
+    ! Define A and B terms
+    cap_A = (b / (a_norm * b_norm)) - ((cos(dihedral) * a) / (a_norm**2))
+    cap_B = (a / (a_norm * b_norm)) - ((cos(dihedral) * b) / (b_norm**2 ))
 
     ! Calculate the force magnitude * ( 1 / sin(phi))
                 ! torsional barrier                 divider            periodicity
@@ -262,10 +261,10 @@ do i=1, n_torsions, 1
                     sin(tors_params(i,8) * dihedral - tors_params(i,7) * pi / 180 ) / (sin(dihedral) + safeguard)
 
     ! Calculate the force on each atom
-    f1 = - f_magnitude * cross_product(cap_A,d23)
-    f4 = f_magnitude * cross_product(cap_B,d23)
-    f2 = - f1 - (f_magnitude * cap_C)
-    f3 = - f4 + (f_magnitude * cap_C)
+    f1 = f_magnitude * cross_product(cap_A,d23)
+    f4 = f_magnitude * cross_product(d23,cap_B)
+    f2 = - f1 + (f_magnitude * (cross_product(d12,cap_A) + cross_product(cap_B,d34)))
+    f3 = - f4 - (f_magnitude * (cross_product(cap_A,d12) + cross_product(cap_B,d34)))
 
     ! Update the force vector
     forces(a1,1:3 )= forces(a1,1:3) + f1
@@ -335,8 +334,8 @@ do i=1, n_impdie, 1
     a4 = int(impdihedrals_params(i,4))
 
     ! Calculate bond/distance vectors
-    d12 = positions(a1,1:3) - positions(a2,1:3)
-    d23 = positions(a2,1:3) - positions(a3,1:3)
+    d12 = positions(a2,1:3) - positions(a1,1:3)
+    d23 = positions(a3,1:3) - positions(a2,1:3)
     d34 = positions(a4,1:3) - positions(a3,1:3)
 
     ! Define a (and b) as cross product and its norm a_norm (and b_norm)
@@ -346,7 +345,7 @@ do i=1, n_impdie, 1
     b_norm = SQRT(dot_product(b,b))
 
     ! calculate the ratio separately and clip to avoid values out of the -1,1 interval 
-    ratio= - dot_product(a,b) / (a_norm * b_norm)
+    ratio= dot_product(a,b) / (a_norm * b_norm)
     if (ratio > 1) then
         if (ratio - 1 > 0.1) then
             write(*,*) "Error in the dihedral angle"  ! check that the difference is not too high
@@ -367,10 +366,9 @@ do i=1, n_impdie, 1
     ! Calculate the improper dihedral angle
     dihedral= acos(ratio)
 
-    ! Define A, B and C terms
-    cap_A = (b / (a_norm * b_norm)) - ((dot_product(a,b) * a) / (a_norm**3 * b_norm))
-    cap_B = (a / (a_norm * b_norm)) - ((dot_product(a,b) * b) / (a_norm * b_norm**3 ))
-    cap_C = cross_product(cap_A,d12) + cross_product(cap_B,d34)
+    ! Define A and B terms
+    cap_A = (b / (a_norm * b_norm)) - ((cos(dihedral) * a) / (a_norm**2))
+    cap_B = (a / (a_norm * b_norm)) - ((cos(dihedral) * b) / (b_norm**2 ))
 
     ! Calculate the force magnitude * ( 1 / sin(phi))
                   ! torsional barrier                            periodicity
@@ -379,10 +377,10 @@ do i=1, n_impdie, 1
                     sin(impdihedrals_params(i,7) * dihedral - impdihedrals_params(i,6) * pi / 180) / (sin(dihedral) + safeguard)
 
     ! Calculate the force on each atom
-    f1 = - f_magnitude * cross_product(cap_A,d23)
-    f4 = f_magnitude * cross_product(cap_B,d23)
-    f2 = - f1 - (f_magnitude * cap_C)
-    f3 = - f4 + (f_magnitude * cap_C)
+    f1 = f_magnitude * cross_product(cap_A,d23)
+    f4 = f_magnitude * cross_product(d23,cap_B)
+    f2 = - f1 + (f_magnitude * (cross_product(d12,cap_A) + cross_product(cap_B,d34)))
+    f3 = - f4 - (f_magnitude * (cross_product(d12,cap_A) + cross_product(cap_B,d34)))
 
     ! Update the force vector
     forces(a1,1:3) = forces(a1,1:3) + f1
@@ -509,11 +507,11 @@ do i=1, size(non_bonded_pairs,dim=1), 1      ! Iterate over the number of non-bo
         f_magnitude = 24 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )
 
         ! Calculate the force on each atom and update the force vector
-        forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
-        forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
+        forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
+        forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
 
         ! Calculate LJ contributions to potential energy
-        pot = (4 * epsilon * ( (sigma / distance)**12 - (sigma / distance)**6 ))
+        pot = 4 * epsilon * ( (sigma / distance)**12 - (sigma / distance)**6 )
         lj_pot = lj_pot + pot
 
         if (debug_flag) then
@@ -564,11 +562,11 @@ do i=1, size(non_bonded_pairs,dim=1), 1
 
     ! Calculate the force magnitude
                 !       charge on a1        charge on a2
-    f_magnitude = - ((resp_charges(a1,2) * resp_charges(a2,2) * charge_to_kJ_mol ) / (distance**2))
+    f_magnitude =  ((resp_charges(a1,2) * resp_charges(a2,2) * charge_to_kJ_mol ) / (distance**2))
 
     ! Calculate the force on each atom and update the force vector
-    forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
-    forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
+    forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
+    forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
 
     ! Calculate Coulombic contributions to the potential energy
     pot = (resp_charges(a1,2) * resp_charges(a2,2) *  charge_to_kJ_mol ) / ( distance)
@@ -619,37 +617,36 @@ do i=1, size(three_bonds_list,dim=1) , 1
     distance = SQRT(dot_product(positions(a2,1:3)-positions(a1,1:3),positions(a2,1:3)-positions(a1,1:3)))
 
     ! LJ term  (scaled down by 2)
+    
+    ! Calculate the parameters following Lorentz/Berthelot mixing rules
+                    ! epsilon a1       epsilon a2
+    epsilon = SQRT(lj_params(a1,3) * lj_params(a2,3)) * kcal_to_kJ
+                ! sigma a1                          sigma a2
+    sigma =  0.5 * (lj_params(a1,2) * 2**(-1/6) + lj_params(a2,2) * 2**(-1/6))
 
-    if (distance < 6 ) then
-        ! Calculate the parameters following Lorentz/Berthelot mixing rules
-                        ! epsilon a1       epsilon a2
-        epsilon = SQRT(lj_params(a1,3) * lj_params(a2,3)) * kcal_to_kJ
-                    ! sigma a1           sigma a2
-        sigma =  0.5 * (lj_params(a1,2) * 2**(-1/6) + lj_params(a2,2) * 2**(-1/6))
+    ! Calculate the force magnitude
+    f_magnitude = 12 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )  
 
-        ! Calculate the force magnitude
-        f_magnitude = 12 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )
+    ! Calculate the force on each atom and update the force vector
+    forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
+    forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
 
-        ! Calculate the force on each atom and update the force vector
-        forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
-        forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
+    ! Calculate LJ part of 1-4 interaction contributions to potential energy
+    pot = 2 * epsilon * ( (sigma / distance)**12 - (sigma / distance)**6 ) 
+    pot_14 = pot_14 + pot
 
-        ! Calculate LJ part of 1-4 interaction contributions to potential energy
-        pot = 2 * epsilon * ( (sigma / distance)**12 - (sigma / distance)**6 )
-        pot_14 = pot_14 + pot
-    end if
     ! Coulomb term (scaled down by 1.2)
 
     ! Calculate the force magnitude
                     !   charge on a1        charge on a2
-    f_magnitude = - ((resp_charges(a1,2) * resp_charges(a2,2) * charge_to_kJ_mol ) / ( distance**2))  / 1.2
+    f_magnitude =  ((resp_charges(a1,2) * resp_charges(a2,2) * charge_to_kJ_mol ) / ( distance**2))  
 
     ! Calculate the force on each atom and update the force vector
-    forces(a1,1:3) = forces(a1,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
-    forces(a2,1:3) = forces(a2,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
+    forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
+    forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
 
     ! Calculate Coulombic part of 1-4 interaction contributions to potential energy
-    pot = ((resp_charges(a1,2) * resp_charges(a2,2) *  charge_to_kJ_mol ) / ( distance)) /1.2
+    pot = ((resp_charges(a1,2) * resp_charges(a2,2) *  charge_to_kJ_mol ) / ( distance)) 
     pot_14 = pot_14 + pot
 
     if (debug_flag) then
