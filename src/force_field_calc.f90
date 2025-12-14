@@ -639,14 +639,14 @@ do i=1, size(three_bonds_list,dim=1) , 1
 
     ! Calculate the force magnitude
                     !   charge on a1        charge on a2
-    f_magnitude =  ((resp_charges(a1,2) * resp_charges(a2,2) * charge_to_kJ_mol ) / ( distance**2))  
+    f_magnitude =  ((resp_charges(a1,2) * resp_charges(a2,2) * charge_to_kJ_mol ) / ( distance**2))  / 1.2
 
     ! Calculate the force on each atom and update the force vector
     forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
     forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
 
     ! Calculate Coulombic part of 1-4 interaction contributions to potential energy
-    pot = ((resp_charges(a1,2) * resp_charges(a2,2) *  charge_to_kJ_mol ) / ( distance)) 
+    pot = ((resp_charges(a1,2) * resp_charges(a2,2) *  charge_to_kJ_mol ) / ( distance)) / 1.2
     pot_14 = pot_14 + pot
 
     if (debug_flag) then
