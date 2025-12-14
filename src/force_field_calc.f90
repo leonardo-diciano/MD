@@ -48,13 +48,9 @@ logical :: is_bonded
 
 
 if (debug_flag) then
-<<<<<<< HEAD
     write(*,"(/A/A)") "Starting the Force Field evaluation","-----------------------------------"
-=======
-    write(*,*) "Starting the Force Field evaluation"
     CALL CPU_TIME(start_time)
     call recprt3("Coordinates",positions,n_atoms)
->>>>>>> main
 end if
 ! Useful costants and conversion factors
 pi = 3.14159265358979
