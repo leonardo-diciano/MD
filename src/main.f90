@@ -6,15 +6,15 @@ use header_mod, only: pine_tree, final_phrase
 use parser_mod, only: parser
 use force_field_mod
 use minimization_mod, only: minimization
+use propagation, only: Verlet_propagator
 
 implicit none
 character(len=256) :: xyzfile, topofile
 character(len=2), allocatable :: atomtypes(:),atomnames(:)
-real(kind=wp), allocatable :: mweights(:),positions(:,:), forces(:,:)
+real(kind=wp), allocatable :: mweights(:),positions_previous(:,:),positions(:,:), forces(:,:)
 real(kind=wp) :: start_time, end_time, tot_pot, gradnorm
 character(len=1) :: short
 logical :: t_present = .false. , c_present = .false., m_present = .false.
-
 
 ! Parse the command line arguments with f90getopt library
 
@@ -94,16 +94,14 @@ allocate(forces(n_atoms,3))
 CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
             impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,debug_flag, suppress_flag = .false.)
 
-
 ! do minimization if -m flag active
 if (m_present) then
     CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag,xyzfile,atomnames)
 end if
 
-
+allocate(positions_previous(n_atoms,3))
 !call init_v()
-
-
+call Verlet_propagator(positions,positions_previous,mweights,n_atoms,debug_flag,atomnames,xyzfile)!,timestep,nsteps)
 
 deallocate(forces)
 

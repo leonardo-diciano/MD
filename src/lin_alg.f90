@@ -16,14 +16,14 @@ subroutine mat_norm(mat,n_atoms,norm)
         do icartesian=1,3
         norm = norm + mat(iatom,icartesian)**2
         end do
-    end do 
+    end do
     norm = SQRT(norm)
-    
+
 
 end subroutine mat_norm
 
 subroutine F_tot_norm(forces,n_atoms,norm)
-    ! subroutine that first sums up all atomic force vectors to 
+    ! subroutine that first sums up all atomic force vectors to
     ! a whole force vector and then calculates the norm of the latter
     use definitions, only: wp
     use print_mod, only: recprt
@@ -40,20 +40,43 @@ subroutine F_tot_norm(forces,n_atoms,norm)
     do iatom=1,n_atoms
         F_tot(:) = F_tot(:) + forces(iatom,:)
     end do
-    
+
     !write(*,*) "F_tot = ",F_tot(:)
     norm = 0
     do icartesian=1,3
         norm = norm + F_tot(icartesian)**2
-    end do 
+    end do
     norm = SQRT(norm)
-    
+
     !write(*,*) "F_norm = ",norm
 
 end subroutine F_tot_norm
 
 
+subroutine displacement_vec(pos1,pos2,n_atoms,atomnames, displacement)
+use definitions, only: wp
+implicit none
+real(kind=wp),intent(in) :: pos1(n_atoms,3), pos2(n_atoms,3)
+character(len=2), intent(in) :: atomnames(:)
+integer, intent(in) :: n_atoms
+real(kind=wp), intent(out) ::  displacement(n_atoms)
 
+integer :: icartesian
+real(kind=wp) :: diff(n_atoms,3)
+
+diff(:,:) = pos2(:,:)-pos1(:,:)
+displacement(:) = 0
+
+do icartesian=1,3
+    displacement(:) = displacement(:) + diff(:,icartesian)**2
+end do
+
+displacement(:) = SQRT(displacement)
+
+
+
+
+end subroutine displacement_vec
 
 
 end module lin_alg

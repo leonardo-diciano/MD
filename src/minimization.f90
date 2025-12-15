@@ -16,7 +16,7 @@ contains
         use definitions, only: wp
         use print_mod, only: recprt,recprt2,recprt3
         use force_field_mod, only: get_energy_gradient
-        use lin_alg, only: mat_norm
+        use lin_alg, only: mat_norm, displacement_vec
 
         implicit none
         logical, intent(in) :: debug_flag
@@ -27,7 +27,7 @@ contains
         real(kind=wp), intent(inout) :: forces(n_atoms,3),positions(n_atoms,3)
 
         real(kind=wp) :: forces_P1(n_atoms,3), forces_P2(n_atoms,3), forces_P3(n_atoms,3)
-         real(kind=wp), allocatable :: positions_P1(:,:),positions_P2(:,:),positions_P3(:,:)
+        real(kind=wp), allocatable :: positions_P1(:,:),positions_P2(:,:),positions_P3(:,:)
         real(kind=wp) :: input_positions(n_atoms,3)
         integer :: iter,i, dot
         real(kind=wp) :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm_P1, gradnorm_P2, gradnorm_P3, &
@@ -167,10 +167,10 @@ contains
             call recprt2("Change in atomic coordinates THROUGH minimization",atomnames(:),&
                                                             positions(:,:)-input_positions(:,:),n_atoms)
         end if
-        call displacement_vec(input_positions,positions,n_atoms,displacement)
+        call displacement_vec(input_positions,positions,n_atoms,atomnames, displacement)
         write(*,*) "Displacements"
         do i = 1, n_atoms
-            write(*,"(I3,1x,A3,1x,F12.8,1x,A)") i,atomnames(i),displacement(i),"Å"
+            write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
         end do
         write(*,"(/A,F12.8,A)") "  sum = ", sum(displacement(:)), " Å"
 
@@ -192,23 +192,5 @@ contains
     end subroutine minimization
 
 
-    subroutine displacement_vec(pos1,pos2,n_atoms,displacement)
-    use definitions, only: wp
-    implicit none
-    real(kind=wp),intent(in) :: pos1(n_atoms,3), pos2(n_atoms,3)
-    integer, intent(in) :: n_atoms
-    real(kind=wp),intent(out) :: displacement(n_atoms)
-    real(kind=wp) :: diff(n_atoms,3)
-    integer :: icartesian
 
-    diff(:,:) = pos2(:,:)-pos1(:,:)
-    displacement(:) = 0
-
-    do icartesian=1,3
-        displacement(:) = displacement(:) + diff(:,icartesian)**2
-    end do
-
-    displacement(:) = SQRT(displacement)
-
-    end subroutine displacement_vec
 end module minimization_mod
