@@ -221,9 +221,9 @@ contains
         write(*,"(/A)") "==================================================================="
         if (converged) then
             if (opt_method == 2) then
-                write(*,"(A,i3,A/)")"Conjugate gradient minimization converged in ", iter,"iterations"
+                write(*,"(A,i3,A/)")"Conjugate gradient minimization converged in ", iter," iterations"
             else
-                write(*,"(A,i3,A/)")"Gradient Descent converged in ", iter,"iterations"
+                write(*,"(A,i3,A/)")"Gradient Descent converged in ", iter," iterations"
             end if
         else
             write(*,"(A/)") "WARNING: energy minimization did not converge in the max number of iterations"
