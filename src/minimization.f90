@@ -35,7 +35,7 @@ contains
         real(kind=wp), parameter :: conv_pot=1e-6, conv_gradnorm=1e-4,alpha = 1e-5!alpha is in angstrom
         integer, parameter :: maxiter = 300
         logical :: suppress_flag, converged_pot =.false., converged_grad = .false., converged = .false.
-        character(len=256) :: minimized_xyzfile
+        character(len=256) :: minimized_xyzfile, traj_xyzfile
 
         real(kind=wp) :: displacement(n_atoms)
 
@@ -81,6 +81,18 @@ contains
             write(*,"(i5,2x,2(F12.6,8x,A,5x))") &
                 iter, tot_pot, "/", gradnorm,"/"
         end if
+
+
+        !prepare traj file
+        dot = index(xyzfile, ".", back=.true.)     ! find last "." in xyzfile name
+        traj_xyzfile = xyzfile(:dot-1) // ".minimization.traj" // xyzfile(dot:)
+        open(97, file=traj_xyzfile, status='replace', action='write')
+
+        write(97,*) n_atoms
+        write(97,*) "atomic positions at iteration = ",iter
+        do i=1, size(positions,1), 1
+            write(97,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1), positions(i,2),positions(i,3)
+        end do
 
 
         ! START ITERATING
@@ -132,6 +144,13 @@ contains
                     best_step, maxval(best_step*forces(:,:)/gradnorm)
             end if
 
+            ! Write trajectory file for the minimization
+            open(97, file=traj_xyzfile, status='old', action='write')
+            write(97,*) n_atoms
+            write(97,*) "atomic positions at iteration = ",iter
+            do i=1, size(positions,1), 1
+                write(97,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1), positions(i,2),positions(i,3)
+            end do
 
             ! Check for convergence
             if (ABS(gradnorm-gradnorm_previous)<conv_gradnorm .and. .not. converged_grad) then
@@ -186,7 +205,9 @@ contains
             write(99,FMT='(A3,5X,F15.6,2X,F15.6,2X,F15.6)') atomnames(i), positions(i,1), positions(i,2),positions(i,3)
         end do
 
+
         write(*,*) "Wrote updated coordinates to ", minimized_xyzfile
+        write(*,*) "Wrote minimization trajectory to ", traj_xyzfile
 
 
     end subroutine minimization

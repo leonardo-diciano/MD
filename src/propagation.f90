@@ -18,6 +18,7 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
 
     real(kind=wp) :: displacement(n_atoms), positions_previous(n_atoms,3), input_positions(n_atoms,3), forces(n_atoms,3), &
                     acceleration(n_atoms,3), total_displacement(n_atoms)
+    real(kind=wp) :: positions_list(2,n_atoms,3)
     integer :: istep, icartesian,i,nsteps, dot
     real(kind=wp) :: timestep, gradnorm, tot_pot
     logical :: suppress_flag = .true.
@@ -33,6 +34,7 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
 
     call get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag)
     total_displacement(:) = 0
+    positions_list(1,:,:) = positions(:,:)
     acceleration(:,:) = 0
     do icartesian = 1,3
         acceleration(:,icartesian) = forces(:,icartesian) / mweights(:)
@@ -64,6 +66,7 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
         istep = istep +1
 
         !UPDATE POSITIONS
+        positions_list(1,:,:) = positions(:,:)
         positions_previous(:,:) = positions(:,:)
         positions(:,:) = 2 * positions(:,:) - positions_previous(:,:) + timestep**2 * acceleration
 
