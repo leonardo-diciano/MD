@@ -33,7 +33,7 @@ contains
         real(kind=wp) :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm_P1, gradnorm_P2, gradnorm_P3, &
                             gradnorm, gradnorm_previous,tot_pot_previous,a,b,best_step, dummy_real
         real(kind=wp), parameter :: conv_pot=1e-6, conv_gradnorm=1e-4,alpha = 1e-5!alpha is in angstrom
-        integer, parameter :: maxiter = 300
+        integer, parameter :: maxiter = 1000
         logical :: suppress_flag, converged_pot =.false., converged_grad = .false., converged = .false.
         character(len=256) :: minimized_xyzfile, traj_xyzfile
 

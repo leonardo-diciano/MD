@@ -105,10 +105,9 @@ call Verlet_propagator(positions,positions_previous,mweights,n_atoms,debug_flag,
 
 deallocate(forces)
 
-CALL final_phrase()
-
-
-
 CALL CPU_TIME(end_time)
 write(*,*) "Total CPU time: ", end_time - start_time, " seconds"
+
+CALL final_phrase()
+
 end program

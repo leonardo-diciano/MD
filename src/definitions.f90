@@ -1,7 +1,13 @@
 module definitions
 
 public :: wp
-integer,parameter :: wp = 8 
+
+! technical
+integer,parameter :: wp = 8
+
+
+! scientific constants
+
+
 
 end module
-
