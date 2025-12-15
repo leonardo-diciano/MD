@@ -12,7 +12,7 @@ module minimization_mod
 
 contains
 
-    subroutine minimization(positions,n_atoms,tot_pot,forces, debug_flag, xyzfile, atomnames)
+    subroutine minimization(positions,n_atoms,tot_pot,forces, debug_flag, xyzfile, atomnames,opt_method)
         use definitions, only: wp
         use print_mod, only: recprt,recprt2,recprt3
         use force_field_mod, only: get_energy_gradient
@@ -20,7 +20,7 @@ contains
 
         implicit none
         logical, intent(in) :: debug_flag
-        integer, intent(in) :: n_atoms
+        integer, intent(in) :: n_atoms,opt_method
         character(len=256), intent(in) :: xyzfile
         character(len=2), intent(in) :: atomnames(:)
         real(kind=wp), intent(inout) :: tot_pot
@@ -28,13 +28,15 @@ contains
 
         real(kind=wp) :: forces_P1(n_atoms,3), forces_P2(n_atoms,3), forces_P3(n_atoms,3)
         real(kind=wp), allocatable :: positions_P1(:,:),positions_P2(:,:),positions_P3(:,:)
-        real(kind=wp) :: input_positions(n_atoms,3)
-        integer :: iter,i, dot
+        real(kind=wp) :: input_positions(n_atoms,3), forces_previous(n_atoms,3), search_dir(n_atoms,3), &
+                        search_dir_previous(n_atoms,3)
+        integer :: iter,i, dot, icartesian, iatom
         real(kind=wp) :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm_P1, gradnorm_P2, gradnorm_P3, &
-                            gradnorm, gradnorm_previous,tot_pot_previous,a,b,best_step, dummy_real
+                            gradnorm, gradnorm_previous,tot_pot_previous,a,b,best_step, dummy_real,&
+                            beta_numerator,beta_denominator, beta
         real(kind=wp), parameter :: conv_pot=1e-6, conv_gradnorm=1e-4,alpha = 1e-5!alpha is in angstrom
         integer, parameter :: maxiter = 1000
-        logical :: suppress_flag, converged_pot =.false., converged_grad = .false., converged = .false.
+        logical :: suppress_flag, converged_pot =.false., converged_grad = .false., converged = .false., conj_grad = .false.
         character(len=256) :: minimized_xyzfile, traj_xyzfile
 
         real(kind=wp) :: displacement(n_atoms)
@@ -61,7 +63,7 @@ contains
         input_positions(:,:) = positions(:,:)
 
         call get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag = .true.)
-
+        forces_previous = forces(:,:)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         ! now that we have the gradient (force vector),
         ! we can follow it (gradient descent) to the minimum
@@ -99,10 +101,42 @@ contains
         do while (.not. converged)
             iter = iter + 1
 
+            if (opt_method==2 .and. iter==1) then
+                write(*,*) "Activating conjugate gradient procedure"
+                conj_grad = .false.
+            end if
+
+            if (.not. conj_grad) then
+                search_dir(:,:) = forces(:,:) / gradnorm !unit vector that is the opposite of gradient vector
+            else if (conj_grad) then
+                search_dir_previous(:,:) = search_dir(:,:)
+
+                beta = 0
+                beta_numerator = 0
+                beta_denominator = 0
+                ! Polak-Ribiere
+                do icartesian=1,3
+                    do iatom =1,n_atoms
+                        beta_numerator = beta_numerator + forces(iatom,icartesian)*(forces(iatom,icartesian)&
+                                        -forces_previous(iatom,icartesian))
+                        beta_denominator = beta_denominator + forces_previous(iatom,icartesian)&
+                                        *forces_previous(iatom,icartesian)
+                    end do
+                end do
+                beta=beta_numerator/beta_denominator
+
+                search_dir(:,:) = forces(:,:) / gradnorm + beta * search_dir_previous(:,:)
+                if (debug_flag) then
+                    write(*,*) "beta_denominator =", beta_denominator, "beta_numerator =", beta_numerator, "beta = ",beta
+                    call recprt2("forces(:,:)/gradnorm",atomnames,forces(:,:)/gradnorm,n_atoms)
+                    call recprt2("search direction",atomnames,search_dir,n_atoms)
+                end if
+            end if
+
             ! get coordinates for the three points used in the line search:
             positions_P1(:,:) = positions(:,:)
-            positions_P2(:,:) = positions(:,:) + 0.5 * alpha * forces(:,:) / gradnorm
-            positions_P3(:,:) = positions(:,:) + alpha * forces(:,:) / gradnorm
+            positions_P2(:,:) = positions(:,:) + 0.5 * alpha * search_dir(:,:)
+            positions_P3(:,:) = positions(:,:) + alpha * search_dir(:,:)
 
             ! get energies for the three points used in the line search:
             CALL get_energy_gradient(positions_P1,tot_pot_P1,forces_P1,gradnorm_P1,suppress_flag = .true.)
@@ -115,19 +149,25 @@ contains
             best_step = - b / (2*a)
 
             ! Perform the step along the gradient vector
-            positions(:,:) = positions(:,:) + best_step * forces(:,:) / gradnorm
+            positions(:,:) = positions(:,:) + best_step * search_dir(:,:)
+
+
 
             ! uncomment this to see the displacements of all atoms (default: only max value is printed (max displacement))
-            if (debug_flag) then
-                call recprt2("Forces",atomnames,forces,n_atoms)
-                call recprt2("Step taken",atomnames,best_step*forces/gradnorm,n_atoms)
-                call mat_norm(forces/gradnorm, n_atoms,dummy_real)
-                write(*,*) "norm =", dummy_real !forces/gradnorm is a unit vector
-            end if
+            !if (debug_flag) then
+            !    call recprt2("Forces",atomnames,forces,n_atoms)
+            !    call recprt2("Step taken",atomnames,best_step*forces/gradnorm,n_atoms)
+            !    call mat_norm(forces/gradnorm, n_atoms,dummy_real)
+            !    write(*,*) "norm =", dummy_real !forces/gradnorm is a unit vector
+            !end if
 
             ! save previous values to track progress and convergence
             gradnorm_previous = gradnorm
             tot_pot_previous = tot_pot
+
+            if (conj_grad) then
+                forces_previous(:,:) = forces(:,:)
+            end if
 
             ! get energies and forces at the new coordinates
             CALL get_energy_gradient(positions,tot_pot,forces,gradnorm, suppress_flag = .true.)
@@ -149,7 +189,7 @@ contains
             write(97,*) n_atoms
             write(97,*) "atomic positions at iteration = ",iter
             do i=1, size(positions,1), 1
-                write(97,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1), positions(i,2),positions(i,3)
+                write(97,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1:3)
             end do
 
             ! Check for convergence
@@ -164,9 +204,12 @@ contains
             if (converged_grad .and. converged_pot) then
                 converged = .true.
             end if
-            if (iter > maxiter) then
-                write(*,*) "energy minimization did not converge in the max number of iterations"
+            if (iter == maxiter) then
                 exit
+            end if
+
+            if (opt_method == 2) then
+                conj_grad = .true.
             end if
         end do
 
@@ -176,7 +219,15 @@ contains
 
         ! Print convergence message
         write(*,"(/A)") "==================================================================="
-        write(*,"(a32,i3,a12/)")"Gradient Descent converged in ", iter,"iterations"
+        if (converged) then
+            if (opt_method == 2) then
+                write(*,"(A,i3,A/)")"Conjugate gradient minimization converged in ", iter,"iterations"
+            else
+                write(*,"(A,i3,A/)")"Gradient Descent converged in ", iter,"iterations"
+            end if
+        else
+            write(*,"(A/)") "WARNING: energy minimization did not converge in the max number of iterations"
+        end if
 
         if (debug_flag) then
             call recprt2("forces on the atoms after minimization",atomnames(:),forces(:,:),n_atoms)
