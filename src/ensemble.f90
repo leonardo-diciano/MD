@@ -9,37 +9,50 @@ contains
 
 subroutine bussi_thermostat(new_K, targ_K, ndeg, tau, alpha, Dt)
 use definitions, only: wp
-    
+
 implicit none
     
-real(kind=wp), intent(in) :: new_K, targ_K, tau, ndeg, Dt
+real(kind=wp), intent(in) :: new_K, targ_K, tau, Dt
+integer, intent(in) :: ndeg
 real(kind=wp), intent(out) :: alpha
-!real(kind=wp) :: 
+real(kind=wp) :: rr, factor
+
 if (tau > Dt) then
     factor=exp(- Dt / tau)
 else
     factor = 0
 end if
 rr = gauss_distrib()
-alpha = SQRT( factor + (targ_K/(ndeg*new_K)) * (1-factor) * (rr**2 + sumnoises()) +&
+alpha = SQRT( factor + (targ_K/(ndeg*new_K)) * (1-factor) * (rr**2 + sumnoises(ndeg-1)) +&
          2 * SQRT(factor) * SQRT((targ_K / (ndeg *new_K)) * (1-factor)*rr) )
 end subroutine
 
+subroutine nosehoover_thermostat(n_atoms,cur_K,targ_T,Dt,Q,friction)
+use definitions, only: wp, boltzmann
 
+implicit none
+real(kind=wp), intent(in) :: cur_K, targ_T, Dt, Q
+integer, intent(in) :: n_atoms
+real(kind=wp), intent(inout) :: friction
+
+friction = friction + (Dt/(2*Q))*(cur_K - (((3*n_atoms + 1)/2) * boltzmann * targ_T))
+
+end subroutine
 
 function gamma_distrib(ia) result(gamma_dist)
+use definitions, only: wp
 
 implicit none
 integer, intent(in) :: ia
-real(kind=wp), intent(out) :: gamma_dist
+real(kind=wp) :: gamma_dist
 real(kind=wp) :: rand1, rand2, x, am, s, v1, v2, acc_prob
 integer :: j
 
-! Check if the ndeg is a good input
+! Check if ia is a good input
 if (ia < 1 ) then
     write(*,*) "Error in the input parameter of the gamma distribution"
-    exit
-! If ndeg is small, follow uniform distribution
+    stop
+! If ia is small, follow uniform distribution
 elseif (ia < 6) then
     x=1.
     do j=1, ia
@@ -74,10 +87,11 @@ gamma_dist=x
 end if
 end function
 
-function gauss_distrib(ndeg) result(gau_distrib)
+function gauss_distrib() result(gau_distrib)
+use definitions, only: wp
 
 implicit none
-real(kind=wp), intent(out) :: gau_distrib
+real(kind=wp) :: gau_distrib
 real(kind=wp), save :: gset
 real(kind=wp) :: rand1, rand2, v1, v2, fac, rsq
 logical, save :: iset = .false.
@@ -101,20 +115,22 @@ else
 endif
 end function
 
-function sumnoises() result(sumnoises)
+function sumnoises(num) result(sumnoise)
+use definitions, only: wp
+
 implicit none
 integer, intent(in) :: num
-real(kind=wp), intent(out) :: sumnoises
+real(kind=wp) :: sumnoise
 real(kind=wp) :: gamdev, gasdev
 
 if (num == 0) then
-    sumnoises = 0.0
+    sumnoise = 0.0
 else if (num == 1) then
-    sumnoises = gauss_distrib()**2
-else if (MOD(nn,2) == 0) then
-    sumnoises = 2.0*gamma_distrib(num/2)
+    sumnoise = gauss_distrib()**2
+else if (MOD(num,2) == 0) then
+    sumnoise = 2.0*gamma_distrib(num/2)
 else
-    sumnoises = 2.0*gamma_distrib((num-1)/2) + gauss_distrib()**2
+    sumnoise = 2.0*gamma_distrib((num-1)/2) + gauss_distrib()**2
 end if
 end function
 

@@ -26,7 +26,7 @@ end function
 subroutine force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
             impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces, debug_flag, suppress_flag)
 
-use definitions, only: wp
+use definitions, only: wp, pi, kcal_to_kJ, safeguard
 use print_mod, only: recprt,recprt3
 implicit none
 
@@ -53,10 +53,7 @@ if (debug_flag) then
     call recprt3("Coordinates",positions,n_atoms)
 end if
 ! Useful costants and conversion factors
-pi = 3.14159265358979
-kcal_to_kJ= 4.184
 charge_to_kJ_mol =  332.05 / kcal_to_kJ
-safeguard=0.000000001 ! 1e-9
 
 
 allocate(forces(n_atoms,3))
