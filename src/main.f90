@@ -4,27 +4,28 @@ use definitions, only: wp
 use f90getopt
 use header_mod, only: pine_tree, final_phrase
 use parser_mod, only: parser
-use force_field_mod 
+use force_field_mod
 use minimization_mod, only: minimization
+use propagation, only: Verlet_propagator
 
 implicit none
 character(len=256) :: xyzfile, topofile
 character(len=2), allocatable :: atomtypes(:),atomnames(:)
-real(kind=wp), allocatable :: mweights(:),positions(:,:), forces(:,:)
+real(kind=wp), allocatable :: mweights(:),positions_previous(:,:),positions(:,:), forces(:,:)
 real(kind=wp) :: start_time, end_time, tot_pot, gradnorm
 character(len=1) :: short
-logical :: t_present = .false. , c_present = .false., m_present = .false.
-
+logical :: t_present = .false. , c_present = .false., m_present = .false., m1_present =.false., p_present = .false.
 
 ! Parse the command line arguments with f90getopt library
 
 ! Declaration of options
-type(option_s) :: opts(5)
+type(option_s) :: opts(6)
 opts(1) = option_s("top",.true.,  "t") ! has argument
 opts(2) = option_s("coord",.true.,  "c") ! has argument
 opts(3) = option_s("debug",.false., "d") ! has no argument
 opts(4) = option_s("help",.false., "h") ! has no argument
 opts(5) = option_s("minimize",.false., "m") ! has no argument
+opts(6) = option_s("propagate",.false., "p") ! has no argument
 
 ! Handle absence of options
 if (command_argument_count() .eq. 0) then
@@ -33,7 +34,7 @@ if (command_argument_count() .eq. 0) then
 end if
 
 do
-    short = getopt("t:c:dhm", opts)
+    short = getopt("t:c:dhmnp", opts)
     select case(short)
         case(char(0))
             exit
@@ -66,8 +67,12 @@ do
                 "  main -t file.top -c coord.xyz",&
                 "  main -top=file.top -coord=coord.xyz"
             stop
-        case("m") !minimize if -m flag 
-              m_present = .true.
+        case("n") !minimize with gradient descent if -m1 flag
+                m1_present = .true.
+        case("m") !minimize with conjugate gradient if -m flag
+                m_present = .true.
+        case("p") !propagate if -p flag present
+                p_present = .true.
     end select
 end do
 
@@ -89,17 +94,30 @@ CALL parser(xyzfile,topofile,n_atoms,n_bonds,n_angles,n_impdie,n_torsions,mweigh
                 angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag,atomnames)
 
 
+
+allocate(forces(n_atoms,3))
 CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
             impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,debug_flag, suppress_flag = .false.)
 
-
 ! do minimization if -m flag active
 if (m_present) then
-    CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag,xyzfile,atomnames)
-end if 
+    CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag,xyzfile,atomnames,2) ! conjugate gradient
+    !
+else if (m1_present) then
+    CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag,xyzfile,atomnames,1) !steepest descent
+end if
 
-CALL final_phrase()
+if (p_present) then
+    allocate(positions_previous(n_atoms,3))
+    !call init_v()
+    call Verlet_propagator(positions,positions_previous,mweights,n_atoms,debug_flag,atomnames,xyzfile)!,timestep,nsteps)
+end if
+
+deallocate(forces)
 
 CALL CPU_TIME(end_time)
 write(*,*) "Total CPU time: ", end_time - start_time, " seconds"
+
+CALL final_phrase()
+
 end program

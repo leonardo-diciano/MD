@@ -35,8 +35,7 @@ logical, intent(in) :: debug_flag,suppress_flag
 real(kind=wp), intent(in) :: positions(n_atoms,3),bond_params(n_bonds,4),angle_params(n_angles,5),&
                     impdihedrals_params(n_impdie,8),tors_params(n_torsions,8),lj_params(n_atoms,3),resp_charges(n_atoms,2)
 
-real(kind=wp), intent(out) :: tot_pot
-real(kind=wp), allocatable, intent(out) :: forces(:,:)
+real(kind=wp), intent(out) :: tot_pot, forces(n_atoms,3)
 real(kind=wp) :: pi, kcal_to_kJ, charge_to_kJ_mol, bond_pot, distance, angle_pot, angle , die_pot, imp_die_pot,&
                  coulomb_pot, lj_pot, pot_14, pot
 real(kind=wp) :: d12(3), d23(3), d34(3), f_magnitude, epsilon, sigma, f1(3), f3(3), f2(3), f4(3), d12_norm, d23_norm, &
@@ -48,7 +47,7 @@ logical :: is_bonded
 
 
 if (debug_flag) then
-    write(*,*) "Starting the Force Field evaluation"
+    write(*,"(/A/A)") "Starting the Force Field evaluation","-----------------------------------"
     CALL CPU_TIME(start_time)
     call recprt3("Coordinates",positions,n_atoms)
 end if
@@ -56,7 +55,6 @@ end if
 charge_to_kJ_mol =  332.05 / kcal_to_kJ
 
 
-allocate(forces(n_atoms,3))
 forces(:,:) = 0         ! initialize the force vector
 tot_pot=0
 
@@ -225,7 +223,7 @@ do i=1, n_torsions, 1
     b = cross_product(d23,d34)
     b_norm = SQRT(dot_product(b,b))
 
-    ! calculate the ratio separately and clip to avoid values out of the -1,1 interval 
+    ! calculate the ratio separately and clip to avoid values out of the -1,1 interval
     ratio= dot_product(a,b) / (a_norm * b_norm)
     if (ratio > 1) then
         if (ratio - 1 > 0.1) then   ! check that the difference is not too high
@@ -317,7 +315,7 @@ if (debug_flag .and. (n_impdie > 0)) then
     write(*,*) ""
     write(*,*) "Improper dihedrals term calculation"
     write(*,FMT='("Atom 1",2X,"Atom 2",2X,"Atom 3",2X,"Atom 4",2X "Dihedral (rad)",2X,"k_phi(kJ/mol)",2X,&
-    &"periodicity",2X,"phase (rad)",2X,"Potential Energy(kJ/mol)")') 
+    &"periodicity",2X,"phase (rad)",2X,"Potential Energy(kJ/mol)")')
 end if
 
 imp_die_pot=0   ! initialize the potential
@@ -341,7 +339,7 @@ do i=1, n_impdie, 1
     b = cross_product(d23,d34)
     b_norm = SQRT(dot_product(b,b))
 
-    ! calculate the ratio separately and clip to avoid values out of the -1,1 interval 
+    ! calculate the ratio separately and clip to avoid values out of the -1,1 interval
     ratio= dot_product(a,b) / (a_norm * b_norm)
     if (ratio > 1) then
         if (ratio - 1 > 0.1) then
@@ -370,7 +368,7 @@ do i=1, n_impdie, 1
     ! Calculate the force magnitude * ( 1 / sin(phi))
                   ! torsional barrier                            periodicity
     f_magnitude = impdihedrals_params(i,5) * kcal_to_kJ  * impdihedrals_params(i,7) * &
-                         !  periodicity                          phase 
+                         !  periodicity                          phase
                     sin(impdihedrals_params(i,7) * dihedral - impdihedrals_params(i,6) * pi / 180) / (sin(dihedral) + safeguard)
 
     ! Calculate the force on each atom
@@ -386,7 +384,7 @@ do i=1, n_impdie, 1
     forces(a4,1:3) = forces(a4,1:3) + f4
 
     ! Calculate the improper dihedral contributions to potential energy
-             ! torsional barrier                                                               
+             ! torsional barrier
     pot = impdihedrals_params(i,5) * kcal_to_kJ * &
                 !          periodicity                              phase
                 (1 + cos(impdihedrals_params(i,7) * dihedral - impdihedrals_params(i,6) * pi / 180))
@@ -614,7 +612,7 @@ do i=1, size(three_bonds_list,dim=1) , 1
     distance = SQRT(dot_product(positions(a2,1:3)-positions(a1,1:3),positions(a2,1:3)-positions(a1,1:3)))
 
     ! LJ term  (scaled down by 2)
-    
+
     ! Calculate the parameters following Lorentz/Berthelot mixing rules
                     ! epsilon a1       epsilon a2
     epsilon = SQRT(lj_params(a1,3) * lj_params(a2,3)) * kcal_to_kJ
@@ -622,14 +620,14 @@ do i=1, size(three_bonds_list,dim=1) , 1
     sigma =  0.5 * (lj_params(a1,2) * 2**(-1/6) + lj_params(a2,2) * 2**(-1/6))
 
     ! Calculate the force magnitude
-    f_magnitude = 12 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )  
+    f_magnitude = 12 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )
 
     ! Calculate the force on each atom and update the force vector
     forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
     forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
 
     ! Calculate LJ part of 1-4 interaction contributions to potential energy
-    pot = 2 * epsilon * ( (sigma / distance)**12 - (sigma / distance)**6 ) 
+    pot = 2 * epsilon * ( (sigma / distance)**12 - (sigma / distance)**6 )
     pot_14 = pot_14 + pot
 
     ! Coulomb term (scaled down by 1.2)
@@ -700,12 +698,12 @@ end subroutine
 
 subroutine get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag)
     use definitions, only: wp
+    use lin_alg, only: mat_norm
     implicit none
     real(kind=wp), intent(in) :: positions(:,:)
-    real(kind=wp), intent(out) :: tot_pot, gradnorm
-    real(kind=wp), allocatable, intent(out) :: forces(:,:)
-
     logical, intent(in) :: suppress_flag
+    real(kind=wp), intent(out) :: tot_pot, gradnorm, forces(n_atoms,3)
+
     integer :: iatom, icartesian
 
     !turn the .false. off if you want to see every energy calculation debug print in every iteration of the energy minimization
@@ -713,17 +711,11 @@ subroutine get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag
     CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
             impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,.false.,suppress_flag)
 
-    gradnorm = 0
-    do iatom=1,n_atoms
-        do icartesian=1,3
-        gradnorm = gradnorm + forces(iatom,icartesian)**2
-        end do
-    end do
-    gradnorm = SQRT(gradnorm)
+    call mat_norm(forces,n_atoms,gradnorm)
 
-    if (.not. suppress_flag) then
-        write(*,*) "gradnorm =",gradnorm
-    end if
+    !if (.not. suppress_flag) then
+    !        write(*,*) "gradnorm =",gradnorm
+    !end if
 
 
 end subroutine
