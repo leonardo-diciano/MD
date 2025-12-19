@@ -7,6 +7,7 @@ use parser_mod, only: parser
 use force_field_mod
 use minimization_mod, only: minimization
 use propagation, only: Verlet_propagator
+use init_v_mod, only: init_v
 
 implicit none
 character(len=256) :: xyzfile, topofile

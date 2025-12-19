@@ -26,7 +26,7 @@ subroutine pine_tree()
     end do
     write(*,*) ""
     write(*,*) ""
-end subroutine 
+end subroutine
 
 subroutine final_phrase()
     use definitions, only: wp

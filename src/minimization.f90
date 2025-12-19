@@ -34,7 +34,7 @@ contains
         real(kind=wp) :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm_P1, gradnorm_P2, gradnorm_P3, &
                             gradnorm, gradnorm_previous,tot_pot_previous,a,b,best_step, dummy_real,&
                             beta_numerator,beta_denominator, beta
-        real(kind=wp), parameter :: conv_pot=1e-6, conv_gradnorm=1e-4,alpha = 1e-5!alpha is in angstrom
+        real(kind=wp), parameter :: conv_pot=1e-6, conv_gradnorm=1e-4,alpha = 1e-4 !alpha is in angstrom
         integer, parameter :: maxiter = 1000
         logical :: suppress_flag, converged_pot =.false., converged_grad = .false., converged = .false., conj_grad = .false.
         character(len=256) :: minimized_xyzfile, traj_xyzfile
@@ -175,7 +175,7 @@ contains
 
             ! Print iteration data
             if (.not. debug_flag) then
-                write(*,"(i5,10x,4(F16.8,3x))") iter, tot_pot, tot_pot-tot_pot_previous, gradnorm,&
+                write(*,"(i5,10x,4(F18.8,3x))") iter, tot_pot, tot_pot-tot_pot_previous, gradnorm,&
                                                 gradnorm-gradnorm_previous
             else
                 write(*,"(i5,2x,4(F12.6,1x),2(f7.1),A,2(F10.2,A),4x,F6.3,2x, F10.6)") &

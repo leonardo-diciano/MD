@@ -69,7 +69,7 @@ contains
 
         write(*,"(/AA)") Title, ":"
         do i=1,n_atoms
-            write(*,"(I3,3X,3(F12.6,1X))") i,mat(i,1:3)
+            write(*,"(I3,3X,3(F16.8,1X))") i,mat(i,1:3)
         end do
         write(*,*) ""
 
