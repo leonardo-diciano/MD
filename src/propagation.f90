@@ -1,7 +1,7 @@
 module propagation
 contains
 
-subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debug_flag, atomnames,xyzfile)!,timestep,nsteps)
+subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag, atomnames,xyzfile)!,timestep,nsteps)
     use definitions, only: wp
     use print_mod, only: recprt2
     use lin_alg, only: displacement_vec
@@ -81,9 +81,10 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
         end do
 
         !UPDATE POSITIONS
-        positions_list(new,:,:) = 0
-        positions_list(new,:,:) = 2 * positions_list(current,:,:) - positions_list(previous,:,:) &
-                                    + timestep**2 * acceleration(:,:)
+        !positions_list(new,:,:) = 0
+
+        call update_pos_Verlet(positions_list(previous,:,:),positions_list(current,:,:),timestep,acceleration(:,:), &
+                            n_atoms, positions_list(new,:,:))
 
         call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),n_atoms,atomnames,displacement)
         total_displacement(:) = total_displacement(:) + displacement(:)
@@ -139,7 +140,22 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
 
     call init_v(input_positions,velocities, n_atoms, mweights, debug_flag)
 
-end subroutine Verlet_propagator
+end subroutine propagator
+
+subroutine update_pos_Verlet(positions_previous,positions_current,timestep,acceleration, n_atoms, positions_new)
+    use definitions, only: wp
+    implicit none
+    real(kind=wp), intent(in) :: positions_previous(n_atoms,3), positions_current(n_atoms,3),timestep,acceleration(n_atoms,3)
+    integer, intent(in) :: n_atoms
+    real(kind=wp), intent(out) :: positions_new(n_atoms,3)
+
+    positions_new(:,:) = 2 * positions_current(:,:) - positions_previous(:,:) + timestep**2 * acceleration(:,:)
+
+    !positions_list(new,:,:) = 2 * positions_list(current,:,:) - positions_list(previous,:,:) &
+    !                        + timestep**2 * acceleration(:,:)
+
+end subroutine update_pos_Verlet
+
 
 
 
@@ -196,5 +212,10 @@ subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag)
     end subroutine init_v
 
 
+
+
+    !subroutine get_temperature(velocities, mweights, n_atoms)
+
+    !end subroutine get_temperature
 
 end module propagation

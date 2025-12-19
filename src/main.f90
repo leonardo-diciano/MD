@@ -6,7 +6,7 @@ use header_mod, only: pine_tree, final_phrase
 use parser_mod, only: parser
 use force_field_mod
 use minimization_mod, only: minimization
-use propagation, only: Verlet_propagator
+use propagation, only: propagator
 use init_v_mod, only: init_v
 
 implicit none
@@ -111,7 +111,7 @@ end if
 if (p_present) then
     allocate(positions_previous(n_atoms,3))
     !call init_v()
-    call Verlet_propagator(positions,positions_previous,mweights,n_atoms,debug_flag,atomnames,xyzfile)!,timestep,nsteps)
+    call propagator(positions,positions_previous,mweights,n_atoms,debug_flag,atomnames,xyzfile)!,timestep,nsteps)
 end if
 
 deallocate(forces)

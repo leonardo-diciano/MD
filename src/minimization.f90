@@ -17,6 +17,7 @@ contains
         use print_mod, only: recprt,recprt2,recprt3
         use force_field_mod, only: get_energy_gradient
         use lin_alg, only: mat_norm, displacement_vec
+        use user_settings, only: etol, ftol
 
         implicit none
         logical, intent(in) :: debug_flag
@@ -34,7 +35,7 @@ contains
         real(kind=wp) :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm_P1, gradnorm_P2, gradnorm_P3, &
                             gradnorm, gradnorm_previous,tot_pot_previous,a,b,best_step, dummy_real,&
                             beta_numerator,beta_denominator, beta
-        real(kind=wp), parameter :: conv_pot=1e-6, conv_gradnorm=1e-4,alpha = 1e-4 !alpha is in angstrom
+        real(kind=wp), parameter :: conv_pot=1e-6, conv_gradnorm=1e-4,alpha = 1e-3 !alpha is in angstrom
         integer, parameter :: maxiter = 1000
         logical :: suppress_flag, converged_pot =.false., converged_grad = .false., converged = .false., conj_grad = .false.
         character(len=256) :: minimized_xyzfile, traj_xyzfile
@@ -193,11 +194,12 @@ contains
             end do
 
             ! Check for convergence
-            if (ABS(gradnorm-gradnorm_previous)<conv_gradnorm .and. .not. converged_grad) then
+            !if (ABS(gradnorm-gradnorm_previous)<conv_gradnorm .and. .not. converged_grad) then
+            if (ABS(gradnorm-gradnorm_previous)<ftol .and. .not. converged_grad) then
                 write(*,*) "gradient converged"
                 converged_grad = .true.
             end if
-            if (ABS(tot_pot-tot_pot_previous)<conv_pot .and. .not. converged_pot) then
+            if (ABS(tot_pot-tot_pot_previous)<etol .and. .not. converged_pot) then
                 write(*,*) "potential converged"
                 converged_pot = .true.
             end if
