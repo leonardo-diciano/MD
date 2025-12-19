@@ -39,10 +39,10 @@ friction = friction + (Dt/(2*Q))*(cur_K - (((3*n_atoms + 1)/2) * boltzmann * tar
 
 end subroutine
 
-subroutine par_rah_barostat()
+!subroutine par_rah_barostat()
 
 
-end subroutine
+!end subroutine
 
 
 function gamma_distrib(ia) result(gamma_dist)
@@ -51,7 +51,7 @@ use definitions, only: wp
 implicit none
 integer, intent(in) :: ia
 real(kind=wp) :: gamma_dist
-real(kind=wp) :: rand1, rand2, x, am, s, v1, v2, acc_prob
+real(kind=wp) :: rand1, rand2, x, am, s, v1, v2, acc_prob, y
 integer :: j
 
 ! Check if ia is a good input
@@ -83,7 +83,7 @@ else
             end do
 
             y = v2/v1
-            am = ndeg-1
+            am = ia-1
             s=SQRT(2.*am+1.)
             x = s*y+am
         end do

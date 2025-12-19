@@ -24,8 +24,8 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
     logical :: suppress_flag = .true.
     character(len=256) :: traj_xyzfile
 
-    nsteps = 50
-    timestep = 0.03 !in fs
+    nsteps = 1000
+    timestep = 1.0 !in fs
 
     ! for intuitive storing of position data (since Verlet requires storing previous positions)
     previous = 1
@@ -76,7 +76,7 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
         !CALCULATE FORCES / ACCELERATION AT CURRENT POSITION
         call get_energy_gradient(positions_list(current,:,:),tot_pot,forces, gradnorm, suppress_flag)
         do icartesian = 1,3
-            acceleration(:,icartesian) = forces(:,icartesian) / mweights(:)
+            acceleration(:,icartesian) = 0.0001 *  forces(:,icartesian) / mweights(:)
             !acceleration in Å/fs^2                    in kJ/mol/Å           in g/mol;
         end do
 
@@ -120,7 +120,7 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
     end do
 
     write(*,"(/A)") "Throughout the simulation, the atoms displaced: (no MSD, but initial vs final coords)"
-    call displacement_vec(positions,input_positions,n_atoms,atomnames, displacement)
+    call displacement_vec(positions_list(current,:,:),input_positions,n_atoms,atomnames, displacement)
     write(*,*) "Displacements (summed all steps)"
     do i = 1, n_atoms
         write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
