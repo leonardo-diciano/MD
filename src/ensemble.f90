@@ -39,6 +39,12 @@ friction = friction + (Dt/(2*Q))*(cur_K - (((3*n_atoms + 1)/2) * boltzmann * tar
 
 end subroutine
 
+subroutine par_rah_barostat()
+
+
+end subroutine
+
+
 function gamma_distrib(ia) result(gamma_dist)
 use definitions, only: wp
 
