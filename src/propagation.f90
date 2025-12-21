@@ -21,7 +21,7 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
                     acceleration(n_atoms,3), total_displacement(n_atoms)
     real(kind=wp) :: positions_list(3,n_atoms,3)
     integer :: istep, icartesian,i, dot, current, previous, new ! ,nsteps
-    real(kind=wp) ::  gradnorm, tot_pot !,timestep 
+    real(kind=wp) ::  gradnorm, tot_pot, kin_en, v(n_atoms,3) !,timestep 
     logical :: suppress_flag = .true.
     character(len=256) :: traj_xyzfile
 
@@ -108,8 +108,9 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
 
         kin_en = 0.0
         v=(positions_list(new,:,:) - positions_list(current,:,:) ) / ( md_ts*1e-5)
+       ! write(*,*) v
         do i=1,n_atoms
-        kin_en = kin_en + (0.5 * (masses(i)*dot_product(v(i,:),v(i,:))))
+        kin_en = kin_en + (0.5 * (mweights(i)*dot_product(v(i,:),v(i,:))))
         end do
         write(*,*) tot_pot, kin_en, tot_pot+kin_en 
         
