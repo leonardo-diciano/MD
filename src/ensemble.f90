@@ -39,10 +39,22 @@ friction = friction + (Dt/(2*Q))*(cur_K - (((3*n_atoms + 1)/2) * boltzmann * tar
 
 end subroutine
 
-!subroutine par_rah_barostat()
+subroutine berendsen_barostat(positions,new_P,targ_P,tau,Dt,k)
+use definitions, only: wp
 
+implicit none
+    
+real(kind=wp), intent(in) :: new_P, targ_P, tau, Dt
+real(kind=wp), allocatable, intent(inout) :: positions (:,:)
+real(kind=wp) :: lambda, k
 
-!end subroutine
+! Just calculate the rescaling of the cell given by different P
+lambda = ( 1 - ( ((k * Dt)/tau) * (new_P - targ_P)))**(-3)
+
+! Rescale coordinates to a new "box volume"
+positions = lambda * positions
+
+end subroutine
 
 
 function gamma_distrib(ia) result(gamma_dist)
