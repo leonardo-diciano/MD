@@ -9,8 +9,8 @@ ftol 1.0e-12
 max_iter 1000
 
 [run_md]
-ts 0.5  # in fs
-nsteps 1000
+ts 0.1  # in fs
+nsteps 100000
 temp 300 # K
 ensemble NVT # or NVE or NPT 
 thermostat Bussi #or NH

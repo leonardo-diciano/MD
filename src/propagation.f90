@@ -106,14 +106,7 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
             write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions_list(new,i,:)
         end do
 
-        kin_en = 0.0
-        v=(positions_list(new,:,:) - positions_list(current,:,:) ) / ( md_ts*1e-5)
-       ! write(*,*) v
-        do i=1,n_atoms
-        kin_en = kin_en + (0.5 * (mweights(i)*dot_product(v(i,:),v(i,:))))
-        end do
-        write(*,*) tot_pot, kin_en, tot_pot+kin_en 
-        
+
         if (debug_flag) then
             write(*,"(/A,I5)") "New quantities at step ",istep
             call recprt2("r(t-Δt) = positions_list(previous,:,:) [Å]",atomnames,positions_list(previous,:,:),n_atoms)
