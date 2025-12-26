@@ -175,7 +175,7 @@ subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag, md_temp)
     real(kind=wp), intent(out) :: velocities(n_atoms,3)
 
     real(kind=wp) :: rand1,rand2, rand_gaussian, v_ix, v_atoms(n_atoms), tot_momentum(3)
-
+    real(kind=wp) :: E_kin, instant_temp
     integer :: iatom, icartesian
 
     write(*,"(/A,/A)") "in init_v", "-------------------------------"
@@ -215,6 +215,7 @@ subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag, md_temp)
     call recprt3("v(t_0) = velocities(:,:) [Å/fs]",velocities(:,:),n_atoms)
     call get_v_atoms(v_atoms,velocities,n_atoms,.true.)
 
+    call get_temperature(velocities, mweights,n_atoms, instant_temp)
 
     end subroutine init_v
 
@@ -271,14 +272,45 @@ subroutine get_tot_momentum(velocities,mweights, n_atoms, tot_momentum)
     write(*,"(/A,3(F10.6),A)") "The total momentum of the system is ", tot_momentum, " g Å/(mol fs)"
 end subroutine get_tot_momentum
 
-!subroutine get_E_kin(, mweights, n_atoms)
-!    use definitions, only: wp, kb
-!    implicit none
-!    real(kind=wp) ::
-!end subroutine get_E_kin
+subroutine get_E_kin(velocities, mweights, n_atoms, E_kin)
+    use definitions, only: wp
+    implicit none
+    real(kind=wp), intent(in) :: velocities(n_atoms,3), mweights(n_atoms)
+    integer, intent(in) :: n_atoms
+    real(kind=wp), intent(out) :: E_kin
 
-!subroutine get_temperature(velocities, mweights, n_atoms)
+    integer :: icartesian, iatom
 
-!end subroutine get_temperature
+    E_kin = 0
+
+    do iatom = 1,n_atoms
+        do icartesian = 1, 3
+            !E_kin = E_kin + 0.5 * mweights(iatom)*velocities(iatom,icartesian)**2
+                                    !g/mol               !Å^2/fs^2
+            !E_kin = E_kin + 0.5 * 1e-3 * mweights(iatom)* 1e10 * velocities(iatom,icartesian)**2
+            !J/mol                       !kg/mol               ! m^2/s^2
+            E_kin = E_kin + 0.5 * 1e4 * mweights(iatom) * velocities(iatom,icartesian)**2
+            !kJ/mol                       !kg/mol               ! m^2/s^2
+        end do
+    end do
+
+    write(*,*) "The kinetic energy is", E_kin, "kJ/mol"
+end subroutine get_E_kin
+
+subroutine get_temperature(velocities,mweights,n_atoms, instant_temp)
+    use definitions, only: wp, boltzmann
+    implicit none
+    real(kind=wp), intent(in) ::velocities(n_atoms,3), mweights(n_atoms)
+    integer, intent(in) :: n_atoms
+    real(kind=wp), intent(out) :: instant_temp !/K
+
+    real(kind=wp) :: E_kin !kJ/mol
+
+    call get_E_kin(velocities, mweights, n_atoms, E_kin)
+    instant_temp = 2 * E_kin /(boltzmann*3*n_atoms)
+                       !kJ/mol  !kJ/(K mol)
+
+    write(*,*) "The temperature is ", instant_temp, "K"
+end subroutine get_temperature
 
 end module propagation
