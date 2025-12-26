@@ -6,6 +6,7 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     use print_mod, only: recprt2
     use lin_alg, only: displacement_vec
     use force_field_mod, only: get_energy_gradient
+    use parser_mod, only: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp
     implicit none
 
     real(kind=wp),intent(in) ::  mweights(n_atoms) !, timestep
@@ -19,13 +20,13 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     real(kind=wp) :: displacement(n_atoms), positions_previous(n_atoms,3), input_positions(n_atoms,3), forces(n_atoms,3), &
                     acceleration(n_atoms,3), total_displacement(n_atoms), velocities(n_atoms,3)
     real(kind=wp) :: positions_list(3,n_atoms,3)
-    integer :: istep, icartesian,i,nsteps, dot, current, previous, new
     real(kind=wp) :: timestep, gradnorm, tot_pot
     character(len=256) :: traj_xyzfile, properties_outfile
+    integer :: istep, icartesian,i, dot, current, previous, new, nsteps
     logical :: suppress_flag = .true., debug = .false.
 
-    nsteps = 500
-    timestep = 0.1 !in fs
+    nsteps = 1000
+    timestep = 1.0 !in fs
 
     ! for intuitive storing of position data (since Verlet requires storing previous positions)
     previous = 1
@@ -55,7 +56,7 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     traj_xyzfile = xyzfile(:dot-1) // ".traj" // xyzfile(dot:)
     open(98, file=traj_xyzfile, status='replace', action='write')
     write(98,*) n_atoms
-    write(98,"(A,F6.2,A)") "atomic positions at t = ",istep*timestep, " fs"
+    write(98,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
     do i=1, size(positions,1), 1
         write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1:3)
     end do
@@ -75,7 +76,7 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     end if
 
     ! HERE THE STEPS ARE TAKEN
-    do while (istep<nsteps)
+    do while (istep<md_nsteps)
         istep = istep +1
 
         !CALCULATE FORCES / ACCELERATION AT CURRENT POSITION
@@ -99,20 +100,27 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
         if (debug) then
             call recprt2("New forces",atomnames,forces,n_atoms)
             call recprt2("New accelerations",atomnames,acceleration,n_atoms)
+            call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),n_atoms,atomnames,displacement)
+            total_displacement(:) = total_displacement(:) + displacement
             write(*,*) "Displacements"
             do i = 1, n_atoms
-              write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
+                write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
             end do
             write(*,"(/A,F12.8,A)") "  sum = ", sum(displacement(:)), " Å"
         end if
+        positions_list(new,:,:) = 0
+        positions_list(new,:,:) = 2 * positions_list(current,:,:) - positions_list(previous,:,:) &
+                                    + md_ts**2 * acceleration(:,:)
+
 
         ! WRITE TRAJECTORY FILE
         open(98, file=traj_xyzfile, status='old', action='write')
         write(98,*) n_atoms
-        write(98,"(A,F6.2,A)") "atomic positions at t = ",istep*timestep, " fs"
+        write(98,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
         do i=1, size(positions,1), 1
             write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions_list(new,i,:)
         end do
+
 
         if (debug_flag) then
             write(*,"(/A,I5)") "New quantities at step ",istep
@@ -142,7 +150,7 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     end do
 
     write(*,"(/A,A)") "Trajectory was written to: ", traj_xyzfile
-    write(*,"(A,F10.2,A)") "Total simulation time", timestep*istep, " fs"
+    write(*,"(A,F10.2,A)") "Total simulation time", md_ts * istep, " fs"
 
     call init_v(input_positions,velocities, n_atoms, mweights, debug_flag)
 

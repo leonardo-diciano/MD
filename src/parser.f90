@@ -2,10 +2,23 @@
 ! Author: Leonardo Di Ciano (2025)
 
 module parser_mod
+use definitions, only: wp
+implicit none
+
+! minimization params
+public :: min_max_iter, min_etol, min_ftol
+integer :: min_max_iter=500
+real(kind=wp) :: min_etol=1.0e-6, min_ftol=1.0e-6
+
+! MD params
+public :: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp
+integer :: md_nsteps=1000
+real(kind=wp) :: md_ts=1.0 , md_temp=300.0
+character(len=32) :: md_ensemble="NVE", md_thermostat="Bussi",md_barostat="PR"
 
 contains
 
-subroutine parser(xyzfile,topofile,n_atoms,n_bonds,n_angles,n_impdie,n_torsions,mweights,positions,atomtypes,bond_params,&
+subroutine parser_top(xyzfile,topofile,n_atoms,n_bonds,n_angles,n_impdie,n_torsions,mweights,positions,atomtypes,bond_params,&
                 angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag, atomnames)
 use definitions, only: wp
 implicit none
@@ -233,5 +246,91 @@ do i=1, size(positions,1), 1
 end do
 end subroutine
 
+
+
+subroutine parser_input(inputfile,xyzfile, topofile, debug_flag, t_present, c_present, m_present, m1_present,&
+         p_present)
+
+
+character(len=256), intent(in) :: inputfile
+character(len=256), intent(out) :: xyzfile, topofile
+logical, intent(inout) :: debug_flag, t_present, c_present, m_present, m1_present,p_present
+integer :: io
+logical :: mini_block = .false., md_block = .false.
+character(len=256) :: line
+character(len=32) :: dummy_symb
+
+
+open(unit=12,file=inputfile,status='old',access='sequential',action='read')
+
+do
+    read(12,'(A)',iostat=io) line
+
+    if (io /= 0) exit
+
+    if (index(line,'#') == 1) cycle ! Use # for input file comments
+    
+    if (index(trim(line), "topology") == 1) then
+        read(line, *) dummy_symb, topofile
+        if (len_trim(topofile) > 0) then
+            t_present = .true.
+        end if
+    end if
+
+    if (index(trim(line), "coords") == 1) then
+        read(line, *) dummy_symb, xyzfile
+        if (len_trim(xyzfile) > 0) then
+            c_present = .true.
+        end if
+    end if
+    
+    if (index(trim(line),"[minimize]") == 1) then
+        mini_block = .true.
+        cycle
+    end if
+
+    if (index(trim(line),"[run_md]") == 1) then
+        mini_block = .false.
+        md_block = .true.
+        p_present = .true.
+        cycle
+    end if
+
+
+
+    if (mini_block) then
+        if (index(trim(line),"conj_grad") == 1) then
+            m_present = .true.
+        elseif (index(trim(line),"steep_desc") == 1) then
+            m1_present = .true.
+        elseif (index(trim(line), "etol") == 1) then
+            read(line,*) dummy_symb, min_etol
+        elseif (index(trim(line),"ftol") == 1) then
+            read(line,*) dummy_symb, min_ftol
+        elseif (index(trim(line),"maxiter") == 1) then
+            read(line,*) dummy_symb, min_max_iter
+        endif
+    end if
+
+    if (md_block) then
+        if (index(trim(line),"ts") == 1) then
+            read(line,*) dummy_symb, md_ts
+        elseif (index(trim(line),"nsteps") == 1) then
+            read(line,*) dummy_symb, md_nsteps
+        elseif (index(trim(line),"temp") == 1) then
+            read(line,*) dummy_symb, md_temp
+        elseif (index(trim(line), "ensemble") == 1) then
+            read(line,*) dummy_symb, md_ensemble
+        elseif (index(trim(line),"thermostat") == 1) then
+            read(line,*) dummy_symb, md_thermostat
+        elseif (index(trim(line),"barostat") == 1) then
+            read(line,*) dummy_symb, md_barostat
+        endif
+    end if
+
+end do
+
+close(12)
+end subroutine
 
 end module
