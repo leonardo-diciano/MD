@@ -1,7 +1,7 @@
 module propagation
 contains
 
-subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debug_flag, atomnames,xyzfile)!,timestep,nsteps)
+subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag, atomnames,xyzfile)!,timestep,nsteps)
     use definitions, only: wp
     use print_mod, only: recprt2
     use lin_alg, only: displacement_vec
@@ -17,15 +17,15 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
 
 
     real(kind=wp) :: displacement(n_atoms), positions_previous(n_atoms,3), input_positions(n_atoms,3), forces(n_atoms,3), &
-                    acceleration(n_atoms,3), total_displacement(n_atoms)
+                    acceleration(n_atoms,3), total_displacement(n_atoms), velocities(n_atoms,3)
     real(kind=wp) :: positions_list(3,n_atoms,3)
     integer :: istep, icartesian,i,nsteps, dot, current, previous, new
     real(kind=wp) :: timestep, gradnorm, tot_pot
-    logical :: suppress_flag = .true.
     character(len=256) :: traj_xyzfile, properties_outfile
+    logical :: suppress_flag = .true., debug = .false.
 
-    nsteps = 50
-    timestep = 0.03 !in fs
+    nsteps = 500
+    timestep = 0.1 !in fs
 
     ! for intuitive storing of position data (since Verlet requires storing previous positions)
     previous = 1
@@ -41,11 +41,11 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
     positions_list(current,:,:) = positions(:,:)
     !positions_list(previous,:,:) = 0
 
-    if (debug_flag) then
+    if (debug) then
         write(*,"(/A,/A,/A)") "In propagation","---------------------------------------","Initialization:"
-    !    call recprt2("forces",atomnames,forces,n_atoms)
+        call recprt2("forces",atomnames,forces,n_atoms)
         write(*,"(A,*(/,F10.6))") "masses: [g/mol]", mweights
-    !   call recprt2("acceleration = forces / masses",atomnames,acceleration,n_atoms)
+       call recprt2("acceleration = forces / masses",atomnames,acceleration,n_atoms)
         write(*,"(A)") "Start performing steps ..."
     end if
 
@@ -56,7 +56,7 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
     write(98,*) n_atoms
     write(98,"(A,F6.2,A)") "atomic positions at t = ",istep*timestep, " fs"
     do i=1, size(positions,1), 1
-        write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1), positions(i,2),positions(i,3)
+        write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1:3)
     end do
 
     ! PREPARE FILE THAT TRACKS PROPERTIES
@@ -65,7 +65,7 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
     write(97,*) "properties"
 
 
-    if (debug_flag) then
+    if (debug) then
         write(*,"(/A,I5)") "Initial quantities at step ",istep
         call recprt2("r(t-Δt)",atomnames,positions_list(previous,:,:),n_atoms)
         call recprt2("r(t)",atomnames,positions_list(current,:,:),n_atoms)
@@ -80,27 +80,30 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
         !CALCULATE FORCES / ACCELERATION AT CURRENT POSITION
         call get_energy_gradient(positions_list(current,:,:),tot_pot,forces, gradnorm, suppress_flag)
         do icartesian = 1,3
-            acceleration(:,icartesian) = forces(:,icartesian) / mweights(:)
+            acceleration(:,icartesian) = 1e-4 * forces(:,icartesian) / mweights(:)
             !acceleration in Å/fs^2                    in kJ/mol/Å           in g/mol;
         end do
 
         !UPDATE POSITIONS
-        positions_list(new,:,:) = 0
-        positions_list(new,:,:) = 2 * positions_list(current,:,:) - positions_list(previous,:,:) &
-                                    + timestep**2 * acceleration(:,:)
+        !positions_list(new,:,:) = 0
 
         open(97, file=properties_outfile, status='old', action='write')
-        !if (debug_flag) then
-        !    call recprt2("New forces",atomnames,forces,n_atoms)
-        !    call recprt2("New accelerations",atomnames,acceleration,n_atoms)
-        !    call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),n_atoms,atomnames,displacement)
-        !    total_displacement(:) = total_displacement(:) + displacement
-        !    write(*,*) "Displacements"
-        !    do i = 1, n_atoms
-        !        write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
-        !    end do
-        !    write(*,"(/A,F12.8,A)") "  sum = ", sum(displacement(:)), " Å"
-        !end if
+        call update_pos_Verlet(positions_list(previous,:,:),positions_list(current,:,:),timestep,acceleration(:,:), &
+                            n_atoms, positions_list(new,:,:))
+
+        call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),n_atoms,atomnames,displacement)
+        total_displacement(:) = total_displacement(:) + displacement(:)
+
+
+        if (debug) then
+            call recprt2("New forces",atomnames,forces,n_atoms)
+            call recprt2("New accelerations",atomnames,acceleration,n_atoms)
+            write(*,*) "Displacements"
+            do i = 1, n_atoms
+              write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
+            end do
+            write(*,"(/A,F12.8,A)") "  sum = ", sum(displacement(:)), " Å"
+        end if
 
         ! WRITE TRAJECTORY FILE
         open(98, file=traj_xyzfile, status='old', action='write')
@@ -124,8 +127,9 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
 
     end do
 
+    displacement(:) = 0
     write(*,"(/A)") "Throughout the simulation, the atoms displaced: (no MSD, but initial vs final coords)"
-    call displacement_vec(positions,input_positions,n_atoms,atomnames, displacement)
+    call displacement_vec(positions_list(current,:,:),input_positions,n_atoms,atomnames, displacement)
     write(*,*) "Displacements (summed all steps)"
     do i = 1, n_atoms
         write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
@@ -139,23 +143,81 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
     write(*,"(/A,A)") "Trajectory was written to: ", traj_xyzfile
     write(*,"(A,F10.2,A)") "Total simulation time", timestep*istep, " fs"
 
-end subroutine Verlet_propagator
+    call init_v(input_positions,velocities, n_atoms, mweights, debug_flag)
 
-subroutine initial_velocities(n_atoms)
-    ! We sample from the Gaussian distribution, this code is done according to the description in Leach (p.365)
+end subroutine propagator
+
+subroutine update_pos_Verlet(positions_previous,positions_current,timestep,acceleration, n_atoms, positions_new)
     use definitions, only: wp
-
     implicit none
+    real(kind=wp), intent(in) :: positions_previous(n_atoms,3), positions_current(n_atoms,3),timestep,acceleration(n_atoms,3)
     integer, intent(in) :: n_atoms
+    real(kind=wp), intent(out) :: positions_new(n_atoms,3)
 
-    real(kind=wp) :: md_temp
+    positions_new(:,:) = 2 * positions_current(:,:) - positions_previous(:,:) + timestep**2 * acceleration(:,:)
 
-    temperature = 300
+    !positions_list(new,:,:) = 2 * positions_list(current,:,:) - positions_list(previous,:,:) &
+    !                        + timestep**2 * acceleration(:,:)
+
+end subroutine update_pos_Verlet
+
+subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag)
+    use definitions, only: wp, pi, kB, proton_mass
+    use print_mod, only: recprt3
+    implicit none
+    real(kind=wp), intent(in) :: mweights(n_atoms), positions(n_atoms,3)
+    integer, intent(in) :: n_atoms
+    logical, intent(in) :: debug_flag
+    real(kind=wp), intent(out) :: velocities(n_atoms,3)
+
+    real(kind=wp) :: rand1,rand2, rand_gaussian, v_ix,v_atom,temperature
+    integer :: iatom, icartesian
+
+    temperature = 298
+
+    write(*,"(/A,/A)") "in init_v", "-------------------------------"
+
+    do iatom = 1,n_atoms
+        do icartesian = 1, 3
+            call random_number(rand1)
+            call random_number(rand2)
+            rand_gaussian = SQRT(-2*LOG(rand1)) * COS(2*pi*rand2)
+            v_ix = SQRT(kB*temperature/(proton_mass*mweights(iatom))) * rand_gaussian
+
+            !write(*,"(/,2(A,1x,F12.8,1x),A,F16.8)") "chi1 =",rand1, "chi2 =", rand2,"rand_gaussian = ",rand_gaussian
+            !write(*,"(A,F16.4,A)") "v_ix = ", v_ix, " m/s"
+
+            ! convert to Å/fs -> 1m/s = 10^10/10^15 Å/fs = 10^-5 Å/fs
+
+            v_ix = 1e-5 * v_ix
+            !write(*,"(A,F14.8,A)") "v_ix = ", v_ix, " Å/fs"
+
+            velocities(iatom,icartesian) = v_ix
+        end do
+    end do
+
+    call recprt3("v(t_0) = velocities(:,:) [Å/fs]",velocities(:,:),n_atoms)
+
+    write(*,*) "v_atoms = ["
+    !calculate the norm of the velocity vector on each atom
+    do iatom = 1,n_atoms
+        v_atom = 0
+        do icartesian = 1,3
+            v_atom = v_atom + velocities(iatom,icartesian)**2
+        end do
+        v_atom = SQRT(v_atom)
+        !write(*,"(A,I3,A,F16.8,A)") "v_atom of atom ", iatom, "= ", v_atom, " Å/fs"
+        write(*,"(F16.8,A)") v_atom, ","
+    end do
+    write(*,*) "]"
+
+    end subroutine init_v
 
 
 
 
-end subroutine initial_velocities
+    !subroutine get_temperature(velocities, mweights, n_atoms)
 
+    !end subroutine get_temperature
 
 end module propagation

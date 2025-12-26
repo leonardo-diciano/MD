@@ -6,8 +6,8 @@ use header_mod, only: pine_tree, final_phrase
 use parser_mod, only: parser
 use force_field_mod
 use minimization_mod, only: minimization
-use propagation, only: Verlet_propagator
 use pbc_mod, only: define_box
+use propagation, only: propagator
 
 implicit none
 character(len=256) :: xyzfile, topofile
@@ -111,7 +111,7 @@ end if
 if (p_present) then
     allocate(positions_previous(n_atoms,3))
     !call init_v()
-    call Verlet_propagator(positions,positions_previous,mweights,n_atoms,debug_flag,atomnames,xyzfile)!,timestep,nsteps)
+    call propagator(positions,positions_previous,mweights,n_atoms,debug_flag,atomnames,xyzfile)!,timestep,nsteps)
 end if
 
 

@@ -17,6 +17,7 @@ contains
         use print_mod, only: recprt,recprt2,recprt3
         use force_field_mod, only: get_energy_gradient
         use lin_alg, only: mat_norm, displacement_vec
+        use user_settings, only: etol, ftol
 
         implicit none
         logical, intent(in) :: debug_flag
@@ -175,7 +176,7 @@ contains
 
             ! Print iteration data
             if (.not. debug_flag) then
-                write(*,"(i5,10x,4(F16.8,3x))") iter, tot_pot, tot_pot-tot_pot_previous, gradnorm,&
+                write(*,"(i5,10x,4(F18.8,3x))") iter, tot_pot, tot_pot-tot_pot_previous, gradnorm,&
                                                 gradnorm-gradnorm_previous
             else
                 write(*,"(i5,2x,4(F12.6,1x),2(f7.1),A,2(F10.2,A),4x,F6.3,2x, F10.6)") &
@@ -193,11 +194,12 @@ contains
             end do
 
             ! Check for convergence
-            if (ABS(gradnorm-gradnorm_previous)<conv_gradnorm .and. .not. converged_grad) then
+            !if (ABS(gradnorm-gradnorm_previous)<conv_gradnorm .and. .not. converged_grad) then
+            if (ABS(gradnorm-gradnorm_previous)<ftol .and. .not. converged_grad) then
                 write(*,*) "gradient converged"
                 converged_grad = .true.
             end if
-            if (ABS(tot_pot-tot_pot_previous)<conv_pot .and. .not. converged_pot) then
+            if (ABS(tot_pot-tot_pot_previous)<etol .and. .not. converged_pot) then
                 write(*,*) "potential converged"
                 converged_pot = .true.
             end if
