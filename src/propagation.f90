@@ -1,17 +1,18 @@
 module propagation
 contains
 
-subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag, atomnames,xyzfile)!,timestep,nsteps)
+subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag, atomnames,xyzfile)!,md_ts,nsteps)
     use definitions, only: wp
     use print_mod, only: recprt2
     use lin_alg, only: displacement_vec
     use force_field_mod, only: get_energy_gradient
     use parser_mod, only: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp
+
     implicit none
 
-    real(kind=wp),intent(in) ::  mweights(n_atoms) !, timestep
+    real(kind=wp),intent(in) ::  mweights(n_atoms)
     real(kind=wp),intent(inout) :: positions(n_atoms,3)
-    integer, intent(in) :: n_atoms !,nsteps
+    integer, intent(in) :: n_atoms
     logical, intent(in) :: debug_flag
     character(len=2), intent(in) :: atomnames(:)
     character(len=256), intent(in) :: xyzfile
@@ -20,13 +21,10 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     real(kind=wp) :: displacement(n_atoms), positions_previous(n_atoms,3), input_positions(n_atoms,3), forces(n_atoms,3), &
                     acceleration(n_atoms,3), total_displacement(n_atoms), velocities(n_atoms,3)
     real(kind=wp) :: positions_list(3,n_atoms,3)
-    real(kind=wp) :: timestep, gradnorm, tot_pot
+    real(kind=wp) :: gradnorm, tot_pot
     character(len=256) :: traj_xyzfile, properties_outfile
-    integer :: istep, icartesian,i, dot, current, previous, new, nsteps
+    integer :: istep, icartesian,i, dot, current, previous, new
     logical :: suppress_flag = .true., debug = .false.
-
-    nsteps = 1000
-    timestep = 1.0 !in fs
 
     ! for intuitive storing of position data (since Verlet requires storing previous positions)
     previous = 1
@@ -38,8 +36,8 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     total_displacement(:) = 0
     input_positions(:,:) = positions(:,:)
 
-    call init_v(input_positions,velocities, n_atoms, mweights, debug_flag)
-    positions_list(previous,:,:) = positions(:,:) - velocities(:,:) * timestep 
+    call init_v(input_positions,velocities, n_atoms, mweights, debug_flag, md_temp)
+    positions_list(previous,:,:) = positions(:,:) - velocities(:,:) * md_ts
     positions_list(current,:,:) = positions(:,:)
     !positions_list(previous,:,:) = 0
 
@@ -90,7 +88,7 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
         !positions_list(new,:,:) = 0
 
         open(97, file=properties_outfile, status='old', action='write')
-        call update_pos_Verlet(positions_list(previous,:,:),positions_list(current,:,:),timestep,acceleration(:,:), &
+        call update_pos_Verlet(positions_list(previous,:,:),positions_list(current,:,:),md_ts,acceleration(:,:), &
                             n_atoms, positions_list(new,:,:))
 
         call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),n_atoms,atomnames,displacement)
@@ -152,37 +150,35 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     write(*,"(/A,A)") "Trajectory was written to: ", traj_xyzfile
     write(*,"(A,F10.2,A)") "Total simulation time", md_ts * istep, " fs"
 
-    call init_v(input_positions,velocities, n_atoms, mweights, debug_flag)
+    call init_v(input_positions,velocities, n_atoms, mweights, debug_flag, md_temp)
 
 end subroutine propagator
 
-subroutine update_pos_Verlet(positions_previous,positions_current,timestep,acceleration, n_atoms, positions_new)
+subroutine update_pos_Verlet(positions_previous,positions_current,md_ts,acceleration, n_atoms, positions_new)
     use definitions, only: wp
     implicit none
-    real(kind=wp), intent(in) :: positions_previous(n_atoms,3), positions_current(n_atoms,3),timestep,acceleration(n_atoms,3)
+    real(kind=wp), intent(in) :: positions_previous(n_atoms,3), positions_current(n_atoms,3),md_ts,acceleration(n_atoms,3)
     integer, intent(in) :: n_atoms
     real(kind=wp), intent(out) :: positions_new(n_atoms,3)
 
-    positions_new(:,:) = 2 * positions_current(:,:) - positions_previous(:,:) + timestep**2 * acceleration(:,:)
+    positions_new(:,:) = 2 * positions_current(:,:) - positions_previous(:,:) + md_ts**2 * acceleration(:,:)
 
     !positions_list(new,:,:) = 2 * positions_list(current,:,:) - positions_list(previous,:,:) &
-    !                        + timestep**2 * acceleration(:,:)
+    !                        + md_ts**2 * acceleration(:,:)
 
 end subroutine update_pos_Verlet
 
-subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag)
+subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag, md_temp)
     use definitions, only: wp, pi, kB, proton_mass
     use print_mod, only: recprt3
     implicit none
-    real(kind=wp), intent(in) :: mweights(n_atoms), positions(n_atoms,3)
+    real(kind=wp), intent(in) :: mweights(n_atoms), positions(n_atoms,3), md_temp
     integer, intent(in) :: n_atoms
     logical, intent(in) :: debug_flag
     real(kind=wp), intent(out) :: velocities(n_atoms,3)
 
-    real(kind=wp) :: rand1,rand2, rand_gaussian, v_ix,v_atom,temperature
+    real(kind=wp) :: rand1,rand2, rand_gaussian, v_ix,v_atom
     integer :: iatom, icartesian
-
-    temperature = 298
 
     write(*,"(/A,/A)") "in init_v", "-------------------------------"
 
@@ -191,7 +187,7 @@ subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag)
             call random_number(rand1)
             call random_number(rand2)
             rand_gaussian = SQRT(-2*LOG(rand1)) * COS(2*pi*rand2)
-            v_ix = SQRT(kB*temperature/(proton_mass*mweights(iatom))) * rand_gaussian
+            v_ix = SQRT(kB*md_temp/(proton_mass*mweights(iatom))) * rand_gaussian
 
             !write(*,"(/,2(A,1x,F12.8,1x),A,F16.8)") "chi1 =",rand1, "chi2 =", rand2,"rand_gaussian = ",rand_gaussian
             !write(*,"(A,F16.4,A)") "v_ix = ", v_ix, " m/s"
