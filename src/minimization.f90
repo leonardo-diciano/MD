@@ -3,7 +3,7 @@
 ! the algorithm employed here is a simple steepest descent
 ! to find the optimal step size in the gradient direction, a line search is done by fitting a parabola
 ! through the points P1,P2,P3. The points are defined using a constant alpha:
-!   P1 = positions; P2 = positions + 0.5 * alpha * grad; P3 = positions + alpha * grad
+!   P1 = positions; P2 = positions + 0.5 * alpha * grad; P3 = positions + min_alpha * grad
 !
 ! Author: Lila Zapp (2025)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -17,7 +17,7 @@ contains
         use print_mod, only: recprt,recprt2,recprt3
         use force_field_mod, only: get_energy_gradient
         use lin_alg, only: mat_norm, displacement_vec
-        use user_settings, only: etol, ftol
+        use parser_mod, only: min_max_iter, min_etol, min_ftol,min_alpha
 
         implicit none
         logical, intent(in) :: debug_flag
@@ -35,8 +35,6 @@ contains
         real(kind=wp) :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm_P1, gradnorm_P2, gradnorm_P3, &
                             gradnorm, gradnorm_previous,tot_pot_previous,a,b,best_step, dummy_real,&
                             beta_numerator,beta_denominator, beta
-        real(kind=wp), parameter :: conv_pot=1e-6, conv_gradnorm=1e-4,alpha = 1e-3!alpha is in angstrom
-        integer, parameter :: maxiter = 1000
         logical :: suppress_flag, converged_pot =.false., converged_grad = .false., converged = .false., conj_grad = .false.
         character(len=256) :: minimized_xyzfile, traj_xyzfile
 
@@ -53,8 +51,9 @@ contains
             write(*,"(A/A/A)") "Three points (U_P1, U_P2, U_P3) in the direction of the gradient vector are calculated,",&
                        " a 2nd order rational function is fitted; of which the minimum is at the position of   ",&
                       " the optimal eta (best_step). U_P1 is the energhy at initial positions(:,:);",&
-                      " U_P2 and P_3 are the energy at positions(:,:) + 0.5 alpha * forces(:,:)/F_tot and 1 alpha respectively."
-            write(*,"(3(A,F10.8,2x),A)") "alpha = ", alpha, "Å;     0.5*alpha = ", 0.5*alpha, "Å"
+                      " U_P2 and P_3 are the energy at positions(:,:) + 0.5 min_alpha * forces(:,:)/F_tot and 1 min_alpha", &
+                      "respectively."
+            write(*,"(3(A,F10.8,2x),A)") "min_alpha = ", min_alpha, "Å;     0.5*min_alpha = ", 0.5*min_alpha, "Å"
             write(*,"(/A)") "iteration  U_tot (U_P1)  delta U   F_tot        delta F       &
                 U_P1   U_P3  [  function to obtain optimal step size    ]  best_step   max displacement"
             write(*,"(A)") "-------------------------------------------------------------------------------------------&
@@ -136,8 +135,8 @@ contains
 
             ! get coordinates for the three points used in the line search:
             positions_P1(:,:) = positions(:,:)
-            positions_P2(:,:) = positions(:,:) + 0.5 * alpha * search_dir(:,:)
-            positions_P3(:,:) = positions(:,:) + alpha * search_dir(:,:)
+            positions_P2(:,:) = positions(:,:) + 0.5 * min_alpha * search_dir(:,:)
+            positions_P3(:,:) = positions(:,:) + min_alpha * search_dir(:,:)
 
             ! get energies for the three points used in the line search:
             CALL get_energy_gradient(positions_P1,tot_pot_P1,forces_P1,gradnorm_P1,suppress_flag = .true.)
@@ -145,8 +144,9 @@ contains
             CALL get_energy_gradient(positions_P3,tot_pot_P3,forces_P3,gradnorm_P3,suppress_flag = .true.)
 
             ! fitting a parabola through the three points with respect to the step size; find x=best_step of minimum
-            b = ((tot_pot_P3-tot_pot_P1) * (0.5*alpha)**2 - (tot_pot_P2 - tot_pot_P1)*alpha**2) / (-0.5*alpha**2 *0.5*alpha)
-            a = (tot_pot_P3-tot_pot_P1) / alpha**2 - b / alpha
+            b = ((tot_pot_P3-tot_pot_P1) * (0.5*min_alpha)**2 - (tot_pot_P2 - tot_pot_P1)*min_alpha**2) / &
+                                                                        (-0.5*min_alpha**2 *0.5*min_alpha)
+            a = (tot_pot_P3-tot_pot_P1) / min_alpha**2 - b / min_alpha
             best_step = - b / (2*a)
 
             ! Perform the step along the gradient vector
@@ -195,18 +195,18 @@ contains
 
             ! Check for convergence
             !if (ABS(gradnorm-gradnorm_previous)<conv_gradnorm .and. .not. converged_grad) then
-            if (ABS(gradnorm-gradnorm_previous)<ftol .and. .not. converged_grad) then
+            if (ABS(gradnorm-gradnorm_previous)<min_ftol .and. .not. converged_grad) then
                 write(*,*) "gradient converged"
                 converged_grad = .true.
             end if
-            if (ABS(tot_pot-tot_pot_previous)<etol .and. .not. converged_pot) then
+            if (ABS(tot_pot-tot_pot_previous)<min_etol .and. .not. converged_pot) then
                 write(*,*) "potential converged"
                 converged_pot = .true.
             end if
             if (converged_grad .and. converged_pot) then
                 converged = .true.
             end if
-            if (iter == maxiter) then
+            if (iter == min_max_iter) then
                 exit
             end if
 

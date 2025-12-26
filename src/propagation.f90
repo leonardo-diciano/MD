@@ -39,7 +39,6 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     call init_v(input_positions,velocities, n_atoms, mweights, debug_flag, md_temp)
     positions_list(previous,:,:) = positions(:,:) - velocities(:,:) * md_ts
     positions_list(current,:,:) = positions(:,:)
-    !positions_list(previous,:,:) = 0
 
     if (debug) then
         write(*,"(/A,/A,/A)") "In propagation","---------------------------------------","Initialization:"
@@ -139,7 +138,7 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     call displacement_vec(positions_list(current,:,:),input_positions,n_atoms,atomnames, displacement)
     write(*,*) "Displacements (summed all steps)"
     do i = 1, n_atoms
-        write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
+        write(*,"(I3,1x,A3,1x,  F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
     end do
 
     write(*,"(/A)") "Displacements (summed all steps)"
@@ -189,7 +188,7 @@ subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag, md_temp)
             rand_gaussian = SQRT(-2*LOG(rand1)) * COS(2*pi*rand2)
             v_ix = SQRT(kB*md_temp/(proton_mass*mweights(iatom))) * rand_gaussian
 
-            !write(*,"(/,2(A,1x,F12.8,1x),A,F16.8)") "chi1 =",rand1, "chi2 =", rand2,"rand_gaussian = ",rand_gaussian
+            !write(*,"(/,2(A,1x,F12.8,1x),A,F16.8)") "rand1 =",rand1, "rand2 =", rand2,"rand_gaussian = ",rand_gaussian
             !write(*,"(A,F16.4,A)") "v_ix = ", v_ix, " m/s"
 
             ! convert to Å/fs -> 1m/s = 10^10/10^15 Å/fs = 10^-5 Å/fs

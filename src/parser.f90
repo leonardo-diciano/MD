@@ -6,9 +6,9 @@ use definitions, only: wp
 implicit none
 
 ! minimization params
-public :: min_max_iter, min_etol, min_ftol
+public :: min_max_iter, min_etol, min_ftol, min_alpha
 integer :: min_max_iter=500
-real(kind=wp) :: min_etol=1.0e-6, min_ftol=1.0e-6
+real(kind=wp) :: min_etol=1.0e-6, min_ftol=1.0e-6, min_alpha = 1e-3
 
 ! MD params
 public :: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp
@@ -174,7 +174,7 @@ do
         count = count + 1
         read(line, *) dummy_symb, impdihedrals_params(count,1),impdihedrals_params(count,2),impdihedrals_params(count,3), &
                                 impdihedrals_params(count,4),impdihedrals_params(count,5),impdihedrals_params(count,6), &
-                                impdihedrals_params(count,7)           
+                                impdihedrals_params(count,7)
     elseif (inDieBlock) then
         count = count + 1
         read(line, *) dummy_symb, tors_params(count,1),tors_params(count,2),tors_params(count,3),tors_params(count,4), &
@@ -218,7 +218,7 @@ count = 0
 do
     read(11,'(A)',iostat=io) line
     if (io /= 0) then
-        exit  
+        exit
     elseif ( count < 2 ) then !Skip first two lines of XYZ file
         count = count + 1
         cycle
@@ -269,7 +269,7 @@ do
     if (io /= 0) exit
 
     if (index(line,'#') == 1) cycle ! Use # for input file comments
-    
+
     if (index(trim(line), "topology") == 1) then
         read(line, *) dummy_symb, topofile
         if (len_trim(topofile) > 0) then
@@ -283,7 +283,7 @@ do
             c_present = .true.
         end if
     end if
-    
+
     if (index(trim(line),"[minimize]") == 1) then
         mini_block = .true.
         cycle
