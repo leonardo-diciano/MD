@@ -45,14 +45,6 @@ contains
             write(*,"(/A)") "iteration          U_tot              delta U            F_tot              delta F"
             write(*,"(A)") "----------------------------------------------------------------------------------------"
         else
-            write(*,*) "Gradient Descent: positions(:,:) = positions(:,:) - eta * gradient(:,:)/gradnorm &
-                                                         = positions(:,:) + eta * forces(:,:)/F_tot"
-            write(*,*) "where the optimal eta in the current gradient vector direction is obtained in a line search:"
-            write(*,"(A/A/A)") "Three points (U_P1, U_P2, U_P3) in the direction of the gradient vector are calculated,",&
-                       " a 2nd order rational function is fitted; of which the minimum is at the position of   ",&
-                      " the optimal eta (best_step). U_P1 is the energhy at initial positions(:,:);",&
-                      " U_P2 and P_3 are the energy at positions(:,:) + 0.5 min_alpha * forces(:,:)/F_tot and 1 min_alpha", &
-                      "respectively."
             write(*,"(3(A,F10.8,2x),A)") "min_alpha = ", min_alpha, "Å;     0.5*min_alpha = ", 0.5*min_alpha, "Å"
             write(*,"(/A)") "iteration  U_tot (U_P1)  delta U   F_tot        delta F       &
                 U_P1   U_P3  [  function to obtain optimal step size    ]  best_step   max displacement"

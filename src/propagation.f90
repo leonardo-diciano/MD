@@ -149,8 +149,6 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     write(*,"(/A,A)") "Trajectory was written to: ", traj_xyzfile
     write(*,"(A,F10.2,A)") "Total simulation time", md_ts * istep, " fs"
 
-    call init_v(input_positions,velocities, n_atoms, mweights, debug_flag, md_temp)
-
 end subroutine propagator
 
 subroutine update_pos_Verlet(positions_previous,positions_current,md_ts,acceleration, n_atoms, positions_new)
@@ -176,7 +174,8 @@ subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag, md_temp)
     logical, intent(in) :: debug_flag
     real(kind=wp), intent(out) :: velocities(n_atoms,3)
 
-    real(kind=wp) :: rand1,rand2, rand_gaussian, v_ix, v_atoms(n_atoms)
+    real(kind=wp) :: rand1,rand2, rand_gaussian, v_ix, v_atoms(n_atoms), tot_momentum(3)
+
     integer :: iatom, icartesian
 
     write(*,"(/A,/A)") "in init_v", "-------------------------------"
@@ -200,9 +199,23 @@ subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag, md_temp)
         end do
     end do
 
-    call recprt3("v(t_0) = velocities(:,:) [Å/fs]",velocities(:,:),n_atoms)
+    !call recprt3("v(t_0) = velocities(:,:) [Å/fs]",velocities(:,:),n_atoms)
+    !call get_v_atoms(v_atoms,velocities,n_atoms,.true.)
 
+    ! THIS IS LIKELY NOT YET ZERO
+    call get_tot_momentum(velocities,mweights, n_atoms, tot_momentum)
+
+    ! NOW WE RECALCULATE THE VELOCITIES TO MAKE THE TOTAL MOMENTUM ZERO (Leach, p.365)
+    do icartesian = 1,3
+        velocities(:,icartesian) = velocities(:,icartesian) - tot_momentum(icartesian) / SUM(mweights)
+    end do
+    write(*,"(/A)") "After adapting the velocities with respect to the momentum and mass:"
+    call get_tot_momentum(velocities,mweights, n_atoms, tot_momentum) !THIS SHOULD NOW BE ZERO
+
+    call recprt3("v(t_0) = velocities(:,:) [Å/fs]",velocities(:,:),n_atoms)
     call get_v_atoms(v_atoms,velocities,n_atoms,.true.)
+
+
     end subroutine init_v
 
 subroutine get_v_atoms(v_atoms,velocities,n_atoms,printopt)
@@ -238,11 +251,34 @@ subroutine get_v_atoms(v_atoms,velocities,n_atoms,printopt)
     end if
 end subroutine get_v_atoms
 
+subroutine get_tot_momentum(velocities,mweights, n_atoms, tot_momentum)
+    use definitions, only: wp, proton_mass
+    implicit none
+    real(kind=wp), intent(in) :: velocities(n_atoms,3), mweights(n_atoms)
+    integer, intent(in) :: n_atoms
+    real(kind=wp), intent(out) :: tot_momentum(3)
+    integer :: iatom, icartesian
 
+    tot_momentum(:) = 0
 
+    do iatom=1,n_atoms
+        do icartesian=1,3
+            tot_momentum(icartesian) = tot_momentum(icartesian) + mweights(iatom) * velocities(iatom,icartesian)
+            !g Å/(mol fs)                                            !g/mol                            !Å/fs
+        end do
+    end do
 
-    !subroutine get_temperature(velocities, mweights, n_atoms)
+    write(*,"(/A,3(F10.6),A)") "The total momentum of the system is ", tot_momentum, " g Å/(mol fs)"
+end subroutine get_tot_momentum
 
-    !end subroutine get_temperature
+!subroutine get_E_kin(, mweights, n_atoms)
+!    use definitions, only: wp, kb
+!    implicit none
+!    real(kind=wp) ::
+!end subroutine get_E_kin
+
+!subroutine get_temperature(velocities, mweights, n_atoms)
+
+!end subroutine get_temperature
 
 end module propagation
