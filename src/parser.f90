@@ -7,8 +7,8 @@ implicit none
 
 ! minimization params
 public :: min_max_iter, min_etol, min_ftol, min_alpha
-integer :: min_max_iter=500
-real(kind=wp) :: min_etol=1.0e-6, min_ftol=1.0e-6, min_alpha = 1e-3
+integer :: min_max_iter=1000
+real(kind=wp) :: min_etol=1.0e-6, min_ftol=1.0e-4, min_alpha = 1e-3
 
 ! MD params
 public :: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp

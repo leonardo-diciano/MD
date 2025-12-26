@@ -1,8 +1,7 @@
 - (...) finish benchmark of alpha values for minimization (both steep, conj)
-- (kinda done) initial velocities
-- update velocities
+- (...) update velocities
 - (...) check functionality of propagator
-- calc temp from velocities
+- calc E_kin, temp from velocities, and write to output file
 - python interface to generate plots of the evolution of properties during the simulation
 - PERIODIC BOUNDARY CONDITIONS
 - box
