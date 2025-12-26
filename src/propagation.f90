@@ -37,7 +37,8 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     total_displacement(:) = 0
     input_positions(:,:) = positions(:,:)
 
-    positions_list(previous,:,:) = positions(:,:)
+    call init_v(input_positions,velocities, n_atoms, mweights, debug_flag)
+    positions_list(previous,:,:) = positions(:,:) - velocities(:,:) * timestep 
     positions_list(current,:,:) = positions(:,:)
     !positions_list(previous,:,:) = 0
 
