@@ -141,7 +141,21 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
 
 end subroutine Verlet_propagator
 
+subroutine initial_velocities(n_atoms)
+    ! We sample from the Gaussian distribution, this code is done according to the description in Leach (p.365)
+    use definitions, only: wp
 
+    implicit none
+    integer, intent(in) :: n_atoms
+
+    real(kind=wp) :: md_temp
+
+    temperature = 300
+
+
+
+
+end subroutine initial_velocities
 
 
 end module propagation
