@@ -176,7 +176,7 @@ subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag, md_temp)
     logical, intent(in) :: debug_flag
     real(kind=wp), intent(out) :: velocities(n_atoms,3)
 
-    real(kind=wp) :: rand1,rand2, rand_gaussian, v_ix,v_atom
+    real(kind=wp) :: rand1,rand2, rand_gaussian, v_ix, v_atoms(n_atoms)
     integer :: iatom, icartesian
 
     write(*,"(/A,/A)") "in init_v", "-------------------------------"
@@ -202,7 +202,24 @@ subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag, md_temp)
 
     call recprt3("v(t_0) = velocities(:,:) [Å/fs]",velocities(:,:),n_atoms)
 
-    write(*,*) "v_atoms = ["
+    call get_v_atoms(v_atoms,velocities,n_atoms,.true.)
+    end subroutine init_v
+
+subroutine get_v_atoms(v_atoms,velocities,n_atoms,printopt)
+    use definitions, only: wp
+    implicit none
+    real(kind=wp),intent(out) :: v_atoms(n_atoms)
+    logical, intent(in) :: printopt
+    integer, intent(in) :: n_atoms
+    real(kind=wp), intent(in) :: velocities(n_atoms,3)
+
+    integer :: iatom, icartesian
+    real(kind=wp) :: v_atom
+
+    v_atoms(:) = 0
+    if (printopt) then
+        write(*,*) "v_atoms = ["
+    end if
     !calculate the norm of the velocity vector on each atom
     do iatom = 1,n_atoms
         v_atom = 0
@@ -210,12 +227,16 @@ subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag, md_temp)
             v_atom = v_atom + velocities(iatom,icartesian)**2
         end do
         v_atom = SQRT(v_atom)
-        !write(*,"(A,I3,A,F16.8,A)") "v_atom of atom ", iatom, "= ", v_atom, " Å/fs"
-        write(*,"(F16.8,A)") v_atom, ","
+        v_atoms(iatom) = v_atom
+        !if (printopt) then
+            write(*,"(F16.8,A)") v_atom, ","
+            !write(*,"(A,I3,A,F16.8,A)") "v_atom of atom ", iatom, "= ", v_atom, " Å/fs"
+        !end if
     end do
-    write(*,*) "]"
-
-    end subroutine init_v
+    if (printopt) then
+        write(*,*) "]"
+    end if
+end subroutine get_v_atoms
 
 
 
