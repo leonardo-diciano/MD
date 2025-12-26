@@ -34,7 +34,7 @@ contains
         real(kind=wp) :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm_P1, gradnorm_P2, gradnorm_P3, &
                             gradnorm, gradnorm_previous,tot_pot_previous,a,b,best_step, dummy_real,&
                             beta_numerator,beta_denominator, beta
-        real(kind=wp), parameter :: conv_pot=1e-6, conv_gradnorm=1e-4,alpha = 1e-5!alpha is in angstrom
+        real(kind=wp), parameter :: conv_pot=1e-6, conv_gradnorm=1e-4,alpha = 1e-3!alpha is in angstrom
         integer, parameter :: maxiter = 1000
         logical :: suppress_flag, converged_pot =.false., converged_grad = .false., converged = .false., conj_grad = .false.
         character(len=256) :: minimized_xyzfile, traj_xyzfile
@@ -221,9 +221,9 @@ contains
         write(*,"(/A)") "==================================================================="
         if (converged) then
             if (opt_method == 2) then
-                write(*,"(A,i3,A/)")"Conjugate gradient minimization converged in ", iter,"iterations"
+                write(*,"(A,i4,A/)")"Conjugate gradient minimization converged in", iter," iterations"
             else
-                write(*,"(A,i3,A/)")"Gradient Descent converged in ", iter,"iterations"
+                write(*,"(A,i4,A/)")"Gradient Descent converged in", iter," iterations"
             end if
         else
             write(*,"(A/)") "WARNING: energy minimization did not converge in the max number of iterations"

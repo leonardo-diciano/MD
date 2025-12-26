@@ -22,7 +22,7 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
     integer :: istep, icartesian,i,nsteps, dot, current, previous, new
     real(kind=wp) :: timestep, gradnorm, tot_pot
     logical :: suppress_flag = .true.
-    character(len=256) :: traj_xyzfile
+    character(len=256) :: traj_xyzfile, properties_outfile
 
     nsteps = 50
     timestep = 0.03 !in fs
@@ -53,12 +53,16 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
     dot = index(xyzfile, ".", back=.true.)     ! find last "." in xyzfile name
     traj_xyzfile = xyzfile(:dot-1) // ".traj" // xyzfile(dot:)
     open(98, file=traj_xyzfile, status='replace', action='write')
-
     write(98,*) n_atoms
     write(98,"(A,F6.2,A)") "atomic positions at t = ",istep*timestep, " fs"
     do i=1, size(positions,1), 1
         write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1), positions(i,2),positions(i,3)
     end do
+
+    ! PREPARE FILE THAT TRACKS PROPERTIES
+    properties_outfile = xyzfile(:dot-1) // ".properties.txt"
+    open(97, file=properties_outfile, status='replace', action='write')
+    write(97,*) "properties"
 
 
     if (debug_flag) then
@@ -85,6 +89,7 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
         positions_list(new,:,:) = 2 * positions_list(current,:,:) - positions_list(previous,:,:) &
                                     + timestep**2 * acceleration(:,:)
 
+        open(97, file=properties_outfile, status='old', action='write')
         !if (debug_flag) then
         !    call recprt2("New forces",atomnames,forces,n_atoms)
         !    call recprt2("New accelerations",atomnames,acceleration,n_atoms)

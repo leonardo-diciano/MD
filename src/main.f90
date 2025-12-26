@@ -7,6 +7,7 @@ use parser_mod, only: parser
 use force_field_mod
 use minimization_mod, only: minimization
 use propagation, only: Verlet_propagator
+use pbc_mod, only: define_box
 
 implicit none
 character(len=256) :: xyzfile, topofile
@@ -113,10 +114,14 @@ if (p_present) then
     call Verlet_propagator(positions,positions_previous,mweights,n_atoms,debug_flag,atomnames,xyzfile)!,timestep,nsteps)
 end if
 
+
+!call define_box()
+
+
 deallocate(forces)
 
 CALL CPU_TIME(end_time)
-write(*,*) "Total CPU time: ", end_time - start_time, " seconds"
+write(*,"(//A,ES18.8,A)") "Total CPU time: ", end_time - start_time, " seconds"
 
 CALL final_phrase()
 
