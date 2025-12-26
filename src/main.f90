@@ -11,7 +11,7 @@ use propagation, only: Verlet_propagator
 implicit none
 character(len=256) :: xyzfile, topofile, inputfile
 character(len=2), allocatable :: atomtypes(:),atomnames(:)
-real(kind=wp), allocatable :: mweights(:),positions_previous(:,:),positions(:,:), forces(:,:)
+real(kind=wp), allocatable :: mweights(:),positions(:,:), forces(:,:)
 real(kind=wp) :: start_time, end_time, tot_pot, gradnorm
 character(len=1) :: short
 logical :: t_present = .false. , c_present = .false., m_present = .false., m1_present =.false.,&
@@ -124,9 +124,8 @@ else if (m1_present) then
 end if
 
 if (p_present) then
-    allocate(positions_previous(n_atoms,3))
     !call init_v()
-    call Verlet_propagator(positions,positions_previous,mweights,n_atoms,debug_flag,atomnames,xyzfile)!,timestep,nsteps)
+    call Verlet_propagator(positions,mweights,n_atoms,debug_flag,atomnames,xyzfile)!,timestep,nsteps)
 end if
 
 deallocate(forces)

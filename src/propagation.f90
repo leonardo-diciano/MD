@@ -1,7 +1,7 @@
 module propagation
 contains
 
-subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debug_flag, atomnames,xyzfile)!,timestep,nsteps)
+subroutine Verlet_propagator(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)!,timestep,nsteps)
     use definitions, only: wp
     use print_mod, only: recprt2
     use lin_alg, only: displacement_vec
@@ -17,7 +17,7 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
     character(len=256), intent(in) :: xyzfile
 
 
-    real(kind=wp) :: displacement(n_atoms), positions_previous(n_atoms,3), input_positions(n_atoms,3), forces(n_atoms,3), &
+    real(kind=wp) :: displacement(n_atoms), input_positions(n_atoms,3), forces(n_atoms,3), &
                     acceleration(n_atoms,3), total_displacement(n_atoms)
     real(kind=wp) :: positions_list(3,n_atoms,3)
     integer :: istep, icartesian,i, dot, current, previous, new ! ,nsteps
@@ -37,7 +37,7 @@ subroutine Verlet_propagator(positions,positions_previous,mweights,n_atoms, debu
     istep = 0
     total_displacement(:) = 0
     input_positions(:,:) = positions(:,:)
-
+    
     positions_list(previous,:,:) = positions(:,:)
     positions_list(current,:,:) = positions(:,:)
     !positions_list(previous,:,:) = 0
