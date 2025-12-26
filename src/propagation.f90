@@ -20,13 +20,13 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     real(kind=wp) :: displacement(n_atoms), positions_previous(n_atoms,3), input_positions(n_atoms,3), forces(n_atoms,3), &
                     acceleration(n_atoms,3), total_displacement(n_atoms), velocities(n_atoms,3)
     real(kind=wp) :: positions_list(3,n_atoms,3)
-    integer :: istep, icartesian,i, dot, current, previous, new ! ,nsteps
-    real(kind=wp) ::  gradnorm, tot_pot, kin_en, v(n_atoms,3) !,timestep 
-    logical :: suppress_flag = .true.
+    integer :: istep, icartesian,i, dot, current, previous, new, nsteps
+    real(kind=wp) ::  gradnorm, tot_pot, kin_en, v(n_atoms,3), timestep 
+    logical :: suppress_flag = .true., debug = .false.
     character(len=256) :: traj_xyzfile
 
-    !nsteps = 1000
-    !timestep = 1.0 !in fs
+    nsteps = 1000
+    timestep = 1.0 !in fs
 
     ! for intuitive storing of position data (since Verlet requires storing previous positions)
     previous = 1
