@@ -36,14 +36,24 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
     ! INITIALIZATION
     istep = 0
     total_displacement(:) = 0
-    input_positions(:,:) = positions(:,:)
+    input_positions(:,:) = positions(:,:) !x(t=0)
+    positions_list(current,:,:) = positions(:,:) !x(t=0)
 
-    call init_v(input_positions,velocities, n_atoms, mweights, debug_flag)
-    call get_temperature(velocities, mweights,n_atoms, instant_temp, E_kin)
-    call get_pressure(positions, forces,instant_temp,n_atoms, pressure)
+    call get_energy_gradient(positions_list(current,:,:),tot_pot,forces, gradnorm, suppress_flag) !F(t=0), E_pot(t=0)
+    call init_v(positions_list(current,:,:),velocities(:,:), n_atoms, mweights, debug_flag) !v(t=-1)
+    do icartesian = 1,3
+        acceleration(:,icartesian) = 1e-4 * forces(:,icartesian) / mweights(:)
+        !acceleration in Å/fs^2                    in kJ/mol/Å           in g/mol;
+    end do
+
+    ! PREPARE FILE THAT TRACKS PROPERTIES
+    properties_outfile = xyzfile(:dot-1) // ".properties.txt"
+    open(97, file=properties_outfile, status='replace', action='write')
+    write(*,"(/A,A)") "Writing properties to ", properties_outfile
+    write(97,"(A10,6(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure"
+    write(97,"(A10,6(A20))") "","kJ/mol", "kJ/mol","kJ/mol", "kJ/(mol Å)", "K", "Pa"
 
     positions_list(previous,:,:) = positions(:,:) - velocities(:,:) * md_ts
-    positions_list(current,:,:) = positions(:,:)
 
     if (debug) then
         write(*,"(/A,/A,/A)") "In propagation","---------------------------------------","Initialization:"
@@ -63,15 +73,6 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
         write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1:3)
     end do
 
-    ! PREPARE FILE THAT TRACKS PROPERTIES
-    properties_outfile = xyzfile(:dot-1) // ".properties.txt"
-    open(97, file=properties_outfile, status='replace', action='write')
-    write(*,"(/A,A)") "Writing properties to ", properties_outfile
-    write(97,"(A10,6(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure"
-    write(97,"(A10,6(A20))") "","kJ/mol", "kJ/mol","kJ/mol", "kJ/(mol Å)", "K", "Pa"
-    !write(97,"(7(F20.8))") istep,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure
-    write(97,"(I8,2x,6(F20.8))") istep,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure
-
 
     if (debug) then
         write(*,"(/A,I5)") "Initial quantities at step ",istep
@@ -84,27 +85,21 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! PERFORM THE STEPS ITERATIVELY
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    do while (istep<md_nsteps)
+    do while (istep<md_nsteps+1)
         istep = istep +1
-
-        ! CALCULATE FORCES / ACCELERATION AT CURRENT POSITION
-        call get_energy_gradient(positions_list(current,:,:),tot_pot,forces, gradnorm, suppress_flag)
-        do icartesian = 1,3
-            acceleration(:,icartesian) = 1e-4 * forces(:,icartesian) / mweights(:)
-            !acceleration in Å/fs^2                    in kJ/mol/Å           in g/mol;
-        end do
 
         ! UPDATE POSITIONS
         call Verlet(positions_list(previous,:,:),positions_list(current,:,:),acceleration(:,:), &
-                            n_atoms, positions_list(new,:,:), velocities(:,:))
+                            n_atoms, positions_list(new,:,:), velocities(:,:)) ! get x(t+1) and v(t)
 
         ! GET PROPERTIES
-        call get_temperature(velocities, mweights,n_atoms, instant_temp, E_kin)
-        call get_pressure(positions, forces,instant_temp,n_atoms, pressure)
+        call get_temperature(velocities, mweights,n_atoms, instant_temp, E_kin) ! use v(t)
+        call get_pressure(positions_list(current,:,:), forces,instant_temp,n_atoms, pressure) ! use x(t) and v(t)
 
         ! WRITE QUANTITIES FILE
         open(97, file=properties_outfile, status='old', action='write')
-        write(97,"(I8,2x,6(F20.8))") istep,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure
+        ! this prints info from the previous step
+        write(97,"(I8,2x,6(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure
 
 
         ! TRACK DISPLACEMENT OF THE ATOMS
@@ -148,6 +143,13 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
 
         positions_list(previous,:,:) = positions_list(current,:,:)
         positions_list(current,:,:) = positions_list(new,:,:)
+
+        ! CALCULATE NEW FORCES / ACCELERATION AT NEW POSITION
+        call get_energy_gradient(positions_list(new,:,:),tot_pot,forces, gradnorm, suppress_flag)
+        do icartesian = 1,3
+            acceleration(:,icartesian) = 1e-4 * forces(:,icartesian) / mweights(:)
+            !acceleration in Å/fs^2                    in kJ/mol/Å           in g/mol;
+        end do
 
     end do
 

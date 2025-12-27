@@ -10,10 +10,10 @@ module propagators
         real(kind=wp), intent(out) :: positions_new(n_atoms,3), velocities(n_atoms,3)
 
         ! UPDATE POSITIONS
-        positions_new(:,:) = 2 * positions_current(:,:) - positions_previous(:,:) + md_ts**2 * acceleration(:,:)
+        positions_new(:,:) = 2 * positions_current(:,:) - positions_previous(:,:) + md_ts**2 * acceleration(:,:) !x(t+1)
 
         !UPDATE VELOCITIES
-        velocities(:,:) = (positions_new(:,:) - positions_previous(:,:))/(2*md_ts)
+        velocities(:,:) = (positions_new(:,:) - positions_previous(:,:))/(2*md_ts) !v(t)
     end subroutine Verlet
 
 
