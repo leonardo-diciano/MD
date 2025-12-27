@@ -2,11 +2,12 @@ module simulation_subroutines
 contains
 
 
-subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag, md_temp)
+subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag)
     use definitions, only: wp, pi, kB, proton_mass
     use print_mod, only: recprt3
+    use parser_mod, only: md_debug, md_temp
     implicit none
-    real(kind=wp), intent(in) :: mweights(n_atoms), positions(n_atoms,3), md_temp
+    real(kind=wp), intent(in) :: mweights(n_atoms), positions(n_atoms,3)
     integer, intent(in) :: n_atoms
     logical, intent(in) :: debug_flag
     real(kind=wp), intent(out) :: velocities(n_atoms,3)
@@ -15,7 +16,9 @@ subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag, md_temp)
     real(kind=wp) :: E_kin, instant_temp
     integer :: iatom, icartesian
 
-    write(*,"(/A,/A)") "in init_v", "-------------------------------"
+    if (md_debug) then
+        write(*,"(/A,/A)") "in init_v", "-------------------------------"
+    end if
 
     do iatom = 1,n_atoms
         do icartesian = 1, 3
@@ -46,11 +49,13 @@ subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag, md_temp)
     do icartesian = 1,3
         velocities(:,icartesian) = velocities(:,icartesian) - tot_momentum(icartesian) / SUM(mweights)
     end do
-    write(*,"(/A)") "After adapting the velocities with respect to the momentum and mass:"
-    call get_tot_momentum(velocities,mweights, n_atoms, tot_momentum) !THIS SHOULD NOW BE ZERO
 
-    call recprt3("v(t_0) = velocities(:,:) [Å/fs]",velocities(:,:),n_atoms)
-    call get_v_atoms(v_atoms,velocities,n_atoms,.true.)
+    if (md_debug) then
+        write(*,"(/A)") "After adapting the velocities with respect to the momentum and mass:"
+        call get_tot_momentum(velocities,mweights, n_atoms, tot_momentum) !THIS SHOULD NOW BE ZERO
+        call recprt3("v(t_0) = velocities(:,:) [Å/fs]",velocities(:,:),n_atoms)
+    end if
+    call get_v_atoms(v_atoms,velocities,n_atoms,md_debug)
 
     end subroutine init_v
 
@@ -77,10 +82,10 @@ subroutine get_v_atoms(v_atoms,velocities,n_atoms,printopt)
         end do
         v_atom = SQRT(v_atom)
         v_atoms(iatom) = v_atom
-        !if (printopt) then
+        if (printopt) then
             write(*,"(F16.8,A)") v_atom, ","
             !write(*,"(A,I3,A,F16.8,A)") "v_atom of atom ", iatom, "= ", v_atom, " Å/fs"
-        !end if
+        end if
     end do
     if (printopt) then
         write(*,*) "]"
@@ -89,6 +94,7 @@ end subroutine get_v_atoms
 
 subroutine get_tot_momentum(velocities,mweights, n_atoms, tot_momentum)
     use definitions, only: wp, proton_mass
+    use parser_mod, only: md_debug
     implicit none
     real(kind=wp), intent(in) :: velocities(n_atoms,3), mweights(n_atoms)
     integer, intent(in) :: n_atoms
@@ -104,7 +110,9 @@ subroutine get_tot_momentum(velocities,mweights, n_atoms, tot_momentum)
         end do
     end do
 
-    write(*,"(/A,3(F10.6),A)") "The total momentum of the system is ", tot_momentum, " g Å/(mol fs)"
+    if (md_debug) then
+        write(*,"(/A,3(F10.6),A)") "The total momentum of the system is ", tot_momentum, " g Å/(mol fs)"
+    end if
 end subroutine get_tot_momentum
 
 subroutine get_E_kin(velocities, mweights, n_atoms, E_kin)
@@ -129,7 +137,7 @@ subroutine get_E_kin(velocities, mweights, n_atoms, E_kin)
         end do
     end do
 
-    write(*,*) "The kinetic energy is", E_kin, "kJ/mol"
+    !write(*,*) "The kinetic energy is", E_kin, "kJ/mol"
 end subroutine get_E_kin
 
 subroutine get_temperature(velocities,mweights,n_atoms, instant_temp, E_kin)
@@ -145,7 +153,7 @@ subroutine get_temperature(velocities,mweights,n_atoms, instant_temp, E_kin)
     instant_temp = 2 * E_kin /(boltzmann*3*n_atoms)
                        !kJ/mol  !kJ/(K mol)
 
-    write(*,*) "The temperature is ", instant_temp, "K"
+    !write(*,*) "The temperature is ", instant_temp, "K"
 end subroutine get_temperature
 
 subroutine get_pressure(positions, forces,instant_temp,n_atoms, pressure)
@@ -173,7 +181,7 @@ subroutine get_pressure(positions, forces,instant_temp,n_atoms, pressure)
 
     pressure = pressure * 1e30 / avogad
 
-    write(*,*) "The pressure is ",pressure,"kJ/m^3 = kPa"
+    !write(*,*) "The pressure is ",pressure,"kJ/m^3 = kPa"
 
 end subroutine get_pressure
 

@@ -1,7 +1,7 @@
 module simulation_mod
 contains
 
-subroutine simulation(positions,positions_previous,mweights,n_atoms, debug_flag, atomnames,xyzfile)!,md_ts,nsteps)
+subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)!,md_ts,nsteps)
     use definitions, only: wp
     use print_mod, only: recprt2
     use lin_alg, only: displacement_vec
@@ -38,10 +38,9 @@ subroutine simulation(positions,positions_previous,mweights,n_atoms, debug_flag,
     total_displacement(:) = 0
     input_positions(:,:) = positions(:,:)
 
-    call init_v(input_positions,velocities, n_atoms, mweights, debug_flag, md_temp)
+    call init_v(input_positions,velocities, n_atoms, mweights, debug_flag)
     call get_temperature(velocities, mweights,n_atoms, instant_temp, E_kin)
     call get_pressure(positions, forces,instant_temp,n_atoms, pressure)
-
 
     positions_list(previous,:,:) = positions(:,:) - velocities(:,:) * md_ts
     positions_list(current,:,:) = positions(:,:)
@@ -67,10 +66,12 @@ subroutine simulation(positions,positions_previous,mweights,n_atoms, debug_flag,
     ! PREPARE FILE THAT TRACKS PROPERTIES
     properties_outfile = xyzfile(:dot-1) // ".properties.txt"
     open(97, file=properties_outfile, status='replace', action='write')
-    write(*,*) "Writing properties to ", properties_outfile
-    write(97,"(6(A20))") "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure"
-    write(97,"(6(A20))") "kJ/mol", "kJ/mol","kJ/mol", "kJ/(mol Å)", "K", "Pa"
-    write(97,"(6(F20.8))") E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure
+    write(*,"(/A,A)") "Writing properties to ", properties_outfile
+    write(97,"(A10,6(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure"
+    write(97,"(A10,6(A20))") "","kJ/mol", "kJ/mol","kJ/mol", "kJ/(mol Å)", "K", "Pa"
+    !write(97,"(7(F20.8))") istep,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure
+    write(97,"(I8,2x,6(F20.8))") istep,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure
+
 
     if (debug) then
         write(*,"(/A,I5)") "Initial quantities at step ",istep
@@ -86,23 +87,27 @@ subroutine simulation(positions,positions_previous,mweights,n_atoms, debug_flag,
     do while (istep<md_nsteps)
         istep = istep +1
 
-        !CALCULATE FORCES / ACCELERATION AT CURRENT POSITION
+        ! CALCULATE FORCES / ACCELERATION AT CURRENT POSITION
         call get_energy_gradient(positions_list(current,:,:),tot_pot,forces, gradnorm, suppress_flag)
         do icartesian = 1,3
             acceleration(:,icartesian) = 1e-4 * forces(:,icartesian) / mweights(:)
             !acceleration in Å/fs^2                    in kJ/mol/Å           in g/mol;
         end do
 
-        !UPDATE POSITIONS
+        ! UPDATE POSITIONS
         call Verlet(positions_list(previous,:,:),positions_list(current,:,:),acceleration(:,:), &
                             n_atoms, positions_list(new,:,:), velocities(:,:))
 
-
+        ! GET PROPERTIES
+        call get_temperature(velocities, mweights,n_atoms, instant_temp, E_kin)
+        call get_pressure(positions, forces,instant_temp,n_atoms, pressure)
 
         ! WRITE QUANTITIES FILE
         open(97, file=properties_outfile, status='old', action='write')
-        write(97,"(6(A20))") "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure"
+        write(97,"(I8,2x,6(F20.8))") istep,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure
 
+
+        ! TRACK DISPLACEMENT OF THE ATOMS
         call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),n_atoms,atomnames,displacement)
         total_displacement(:) = total_displacement(:) + displacement(:)
 
@@ -147,17 +152,20 @@ subroutine simulation(positions,positions_previous,mweights,n_atoms, debug_flag,
     end do
 
     displacement(:) = 0
-    write(*,"(/A)") "Throughout the simulation, the atoms displaced: (no MSD, but initial vs final coords)"
-    call displacement_vec(positions_list(current,:,:),input_positions,n_atoms,atomnames, displacement)
-    write(*,*) "Displacements (summed all steps)"
-    do i = 1, n_atoms
-        write(*,"(I3,1x,A3,1x,  F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
-    end do
 
-    write(*,"(/A)") "Displacements (summed all steps)"
-    do i = 1, n_atoms
-        write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),total_displacement(i),"Å"
-    end do
+    if (debug) then
+        write(*,"(/A)") "Throughout the simulation, the atoms displaced: (no MSD, but initial vs final coords)"
+        call displacement_vec(positions_list(current,:,:),input_positions,n_atoms,atomnames, displacement)
+        write(*,*) "Displacements (summed all steps)"
+        do i = 1, n_atoms
+            write(*,"(I3,1x,A3,1x,  F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
+        end do
+
+        write(*,"(/A)") "Displacements (summed all steps)"
+        do i = 1, n_atoms
+            write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),total_displacement(i),"Å"
+        end do
+    end if
 
     write(*,"(/A,A)") "Trajectory was written to: ", traj_xyzfile
     write(*,"(A,F10.2,A)") "Total simulation time", md_ts * istep, " fs"

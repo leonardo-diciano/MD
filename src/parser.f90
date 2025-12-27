@@ -11,10 +11,11 @@ integer :: min_max_iter=1000
 real(kind=wp) :: min_etol=1.0e-6, min_ftol=1.0e-4, min_alpha = 1e-3
 
 ! MD params
-public :: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp, md_boxlength
+public :: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp, md_boxlength, md_debug
 integer :: md_nsteps=1000
 real(kind=wp) :: md_ts=1.0 , md_temp=300.0, md_boxlength = 20
 character(len=32) :: md_ensemble="NVE", md_thermostat="Bussi",md_barostat="PR"
+logical :: md_debug = .false.
 
 contains
 

@@ -12,7 +12,7 @@ use simulation_mod, only: simulation
 implicit none
 character(len=256) :: xyzfile, topofile, inputfile
 character(len=2), allocatable :: atomtypes(:),atomnames(:)
-real(kind=wp), allocatable :: mweights(:),positions_previous(:,:),positions(:,:), forces(:,:)
+real(kind=wp), allocatable :: mweights(:),positions(:,:), forces(:,:)
 real(kind=wp) :: start_time, end_time, tot_pot, gradnorm
 character(len=1) :: short
 logical :: t_present = .false. , c_present = .false., m_present = .false., m1_present =.false.,&
@@ -71,6 +71,7 @@ do
                 "  -t file.top  --top=file.top      Topology file - Required",&
                 "  -c coord.xyz --coord=coord.xyz   XYZ coordinate file - Required",&
                 "  -m [sd,cg]   --minimize          Require minimization with steepest descent(sd) or conjugate gradient(cg)",&
+                "  -p           --minimize          Propagate the system using the Verlet integrator and default settings",&
                 "  -h           --help              Print this help screen",&
                 "  -d           --debug             Print extended output for debug",&
                 "Examples:",&
@@ -125,8 +126,7 @@ else if (m1_present) then
 end if
 
 if (p_present) then
-    allocate(positions_previous(n_atoms,3))
-    call simulation(positions,positions_previous,mweights,n_atoms,debug_flag,atomnames,xyzfile)
+    call simulation(positions,mweights,n_atoms,debug_flag,atomnames,xyzfile)
 end if
 
 
