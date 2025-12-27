@@ -52,8 +52,6 @@ subroutine init_v(positions,velocities, n_atoms, mweights, debug_flag, md_temp)
     call recprt3("v(t_0) = velocities(:,:) [Å/fs]",velocities(:,:),n_atoms)
     call get_v_atoms(v_atoms,velocities,n_atoms,.true.)
 
-    call get_temperature(velocities, mweights,n_atoms, instant_temp)
-
     end subroutine init_v
 
 subroutine get_v_atoms(v_atoms,velocities,n_atoms,printopt)
@@ -134,12 +132,12 @@ subroutine get_E_kin(velocities, mweights, n_atoms, E_kin)
     write(*,*) "The kinetic energy is", E_kin, "kJ/mol"
 end subroutine get_E_kin
 
-subroutine get_temperature(velocities,mweights,n_atoms, instant_temp)
+subroutine get_temperature(velocities,mweights,n_atoms, instant_temp, E_kin)
     use definitions, only: wp, boltzmann
     implicit none
     real(kind=wp), intent(in) ::velocities(n_atoms,3), mweights(n_atoms)
     integer, intent(in) :: n_atoms
-    real(kind=wp), intent(out) :: instant_temp !/K
+    real(kind=wp), intent(out) :: instant_temp
 
     real(kind=wp) :: E_kin !kJ/mol
 

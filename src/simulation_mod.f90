@@ -7,8 +7,8 @@ subroutine simulation(positions,positions_previous,mweights,n_atoms, debug_flag,
     use lin_alg, only: displacement_vec
     use force_field_mod, only: get_energy_gradient
     use parser_mod, only: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp
-    use simulation_subroutines, only: init_v, get_pressure
-    use propagators, only: update_pos_Verlet
+    use simulation_subroutines, only: init_v, get_pressure, get_temperature
+    use propagators, only: Verlet
 
     implicit none
 
@@ -23,7 +23,7 @@ subroutine simulation(positions,positions_previous,mweights,n_atoms, debug_flag,
     real(kind=wp) :: displacement(n_atoms), positions_previous(n_atoms,3), input_positions(n_atoms,3), forces(n_atoms,3), &
                     acceleration(n_atoms,3), total_displacement(n_atoms), velocities(n_atoms,3)
     real(kind=wp) :: positions_list(3,n_atoms,3)
-    real(kind=wp) :: gradnorm, tot_pot, instant_temp, pressure
+    real(kind=wp) :: gradnorm, tot_pot, instant_temp, pressure, E_kin
     character(len=256) :: traj_xyzfile, properties_outfile
     integer :: istep, icartesian,i, dot, current, previous, new
     logical :: suppress_flag = .true., debug = .false.
@@ -39,7 +39,9 @@ subroutine simulation(positions,positions_previous,mweights,n_atoms, debug_flag,
     input_positions(:,:) = positions(:,:)
 
     call init_v(input_positions,velocities, n_atoms, mweights, debug_flag, md_temp)
+    call get_temperature(velocities, mweights,n_atoms, instant_temp, E_kin)
     call get_pressure(positions, forces,instant_temp,n_atoms, pressure)
+
 
     positions_list(previous,:,:) = positions(:,:) - velocities(:,:) * md_ts
     positions_list(current,:,:) = positions(:,:)
@@ -65,9 +67,10 @@ subroutine simulation(positions,positions_previous,mweights,n_atoms, debug_flag,
     ! PREPARE FILE THAT TRACKS PROPERTIES
     properties_outfile = xyzfile(:dot-1) // ".properties.txt"
     open(97, file=properties_outfile, status='replace', action='write')
-    write(97,*) "properties"
-    write(*,*) "E_tot", "E_kin","E_pot", "F_norm", "Temp"
-
+    write(*,*) "Writing properties to ", properties_outfile
+    write(97,"(6(A20))") "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure"
+    write(97,"(6(A20))") "kJ/mol", "kJ/mol","kJ/mol", "kJ/(mol Å)", "K", "Pa"
+    write(97,"(6(F20.8))") E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure
 
     if (debug) then
         write(*,"(/A,I5)") "Initial quantities at step ",istep
@@ -77,7 +80,9 @@ subroutine simulation(positions,positions_previous,mweights,n_atoms, debug_flag,
         !call recprt2("acceleration",atomnames,acceleration,n_atoms)
     end if
 
-    ! HERE THE STEPS ARE TAKEN
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! PERFORM THE STEPS ITERATIVELY
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     do while (istep<md_nsteps)
         istep = istep +1
 
@@ -89,12 +94,14 @@ subroutine simulation(positions,positions_previous,mweights,n_atoms, debug_flag,
         end do
 
         !UPDATE POSITIONS
-        !positions_list(new,:,:) = 0
+        call Verlet(positions_list(previous,:,:),positions_list(current,:,:),acceleration(:,:), &
+                            n_atoms, positions_list(new,:,:), velocities(:,:))
+
+
 
         ! WRITE QUANTITIES FILE
         open(97, file=properties_outfile, status='old', action='write')
-        call update_pos_Verlet(positions_list(previous,:,:),positions_list(current,:,:),md_ts,acceleration(:,:), &
-                            n_atoms, positions_list(new,:,:))
+        write(97,"(6(A20))") "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure"
 
         call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),n_atoms,atomnames,displacement)
         total_displacement(:) = total_displacement(:) + displacement(:)
