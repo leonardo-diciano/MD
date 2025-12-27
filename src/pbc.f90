@@ -3,25 +3,22 @@
 ! setting periodic boundary conditions
 ! filling the box with particles
 
-
 module pbc_mod
 contains
 
-    !subroutine define_box(measures)
     subroutine define_box()
-    ! for now just a 3D rectangular box; try allowing different shapes later
+    ! for now just a 3D cube; try allowing different shapes later
     use definitions, only: wp
+    use parser_mod, only: md_boxlength
     implicit none
 
-    !real(kind = wp), intent(in) :: measures(3)
-    real(kind = wp) :: measures(3)
     logical:: within, outside
-    real(kind = wp) :: centerpoint(3), vertices(8,3), faces(6,4,3)
+    real(kind = wp) :: centerpoint(3), vertices(8,3), faces(6,4,3), measures(3)
     integer :: sign1, sign2, sign3, vertnr, i
 
-    measures = [4,4,4]
-
+    measures = [md_boxlength, md_boxlength, md_boxlength]
     centerpoint(:) = 0
+
 
 
     write(*,"(/A,/A,/)") "DEFINE THE BOX", "---------------------------"
@@ -37,7 +34,7 @@ contains
                 vertices(vertnr,1) = centerpoint(1) + sign1 * 0.5 * measures(1)
                 vertices(vertnr,2) = centerpoint(2) + sign2 * 0.5 * measures(2)
                 vertices(vertnr,3) = centerpoint(3) + sign3 * 0.5 * measures(3)
-                write(*,"(A,I3,A,3(F8.3))")"vertex ",vertnr," lies at ", vertices(vertnr,:)
+                write(*,"(A,I3,A,3(F15.3))")"vertex ",vertnr," lies at ", vertices(vertnr,:)
             end do
         end do
     end do
@@ -97,15 +94,11 @@ contains
     do i = 1, 6
         write(*,"(/A,I2)") "face nr ", i
         do vertnr = 1,4
-            write(*,"(3(F6.2))") faces(i,vertnr,:)
+            write(*,"(3(F15.3))") faces(i,vertnr,:)
         end do
     end do
 
     end subroutine define_box
-
-
-
-
 
 
 end module pbc_mod

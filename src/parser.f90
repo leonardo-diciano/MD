@@ -7,7 +7,7 @@ implicit none
 
 ! minimization params
 public :: min_max_iter, min_etol, min_ftol, min_alpha, min_debug
-integer :: min_max_iter=1000
+integer :: min_max_iter=10000
 real(kind=wp) :: min_etol=1.0e-6, min_ftol=1.0e-4, min_alpha = 1e-3
 logical :: min_debug = .false.
 

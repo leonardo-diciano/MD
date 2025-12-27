@@ -1,8 +1,5 @@
 - (...) finish benchmark of alpha values for minimization (both steep, conj)
-- (...) update velocities
 - (...) check functionality of propagator
-- (...) write quantities to output file
-- python interface to generate plots of the evolution of properties during the simulation
 - PERIODIC BOUNDARY CONDITIONS
 - box
 - multiple particles in the box
