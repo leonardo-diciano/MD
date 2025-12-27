@@ -21,7 +21,7 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     real(kind=wp) :: displacement(n_atoms), positions_previous(n_atoms,3), input_positions(n_atoms,3), forces(n_atoms,3), &
                     acceleration(n_atoms,3), total_displacement(n_atoms), velocities(n_atoms,3)
     real(kind=wp) :: positions_list(3,n_atoms,3)
-    real(kind=wp) :: gradnorm, tot_pot
+    real(kind=wp) :: gradnorm, tot_pot, instant_temp, pressure
     character(len=256) :: traj_xyzfile, properties_outfile
     integer :: istep, icartesian,i, dot, current, previous, new
     logical :: suppress_flag = .true., debug = .false.
@@ -37,6 +37,8 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     input_positions(:,:) = positions(:,:)
 
     call init_v(input_positions,velocities, n_atoms, mweights, debug_flag, md_temp)
+    call get_pressure(positions, forces,instant_temp,n_atoms, pressure)
+
     positions_list(previous,:,:) = positions(:,:) - velocities(:,:) * md_ts
     positions_list(current,:,:) = positions(:,:)
 
@@ -62,6 +64,7 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
     properties_outfile = xyzfile(:dot-1) // ".properties.txt"
     open(97, file=properties_outfile, status='replace', action='write')
     write(97,*) "properties"
+    write(*,*) "E_tot", "E_kin","E_pot", "F_norm", "Temp"
 
 
     if (debug) then
@@ -86,6 +89,7 @@ subroutine propagator(positions,positions_previous,mweights,n_atoms, debug_flag,
         !UPDATE POSITIONS
         !positions_list(new,:,:) = 0
 
+        ! WRITE QUANTITIES FILE
         open(97, file=properties_outfile, status='old', action='write')
         call update_pos_Verlet(positions_list(previous,:,:),positions_list(current,:,:),md_ts,acceleration(:,:), &
                             n_atoms, positions_list(new,:,:))
@@ -313,4 +317,32 @@ subroutine get_temperature(velocities,mweights,n_atoms, instant_temp)
     write(*,*) "The temperature is ", instant_temp, "K"
 end subroutine get_temperature
 
+subroutine get_pressure(positions, forces,instant_temp,n_atoms, pressure)
+    use definitions, only: wp, boltzmann, avogad
+    use parser_mod, only: md_boxlength
+    implicit none
+    real(kind=wp), intent(in) ::instant_temp, positions(n_atoms,3),forces(n_atoms,3)
+    integer, intent(in) :: n_atoms
+    real(kind=wp), intent(out) :: pressure
+
+    real(kind=wp) :: volume, avg
+    integer :: icartesian, iatom
+
+    volume = md_boxlength * md_boxlength * md_boxlength ! Å^3
+
+    avg = 0
+    do iatom = 1, n_atoms
+        do icartesian = 1, 3
+            avg = avg + positions(iatom, icartesian) * forces(iatom, icartesian)
+            !kJ/mol          !Å                             !kJ/mol/Å
+        end do
+    end do
+    pressure = 1/(3*volume)*(avg+3*n_atoms*boltzmann*instant_temp)
+    !kJ/mol/Å^3      !Å^3              !kJ/mol
+
+    pressure = pressure * 1e30 / avogad
+
+    write(*,*) "The pressure is ",pressure,"kJ/m^3 = kPa"
+
+end subroutine get_pressure
 end module propagation
