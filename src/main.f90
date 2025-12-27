@@ -7,7 +7,7 @@ use parser_mod, only: parser_top, parser_input
 use force_field_mod
 use minimization_mod, only: minimization
 use pbc_mod, only: define_box
-use propagation, only: propagator
+use simulation_mod, only: simulation
 
 implicit none
 character(len=256) :: xyzfile, topofile, inputfile
@@ -77,7 +77,7 @@ do
                 "  main -t file.top -c coord.xyz",&
                 "  main -top=file.top -coord=coord.xyz"
             stop
-        case("m") !minimize 
+        case("m") !minimize
             if ((trim(optarg) > "") .and. (trim(optarg)) == 'sd') then
                 m1_present = .true. ! if explicitly requested for sd
             else
@@ -126,7 +126,7 @@ end if
 
 if (p_present) then
     allocate(positions_previous(n_atoms,3))
-    call propagator(positions,positions_previous,mweights,n_atoms,debug_flag,atomnames,xyzfile)!,timestep,nsteps)
+    call simulation(positions,positions_previous,mweights,n_atoms,debug_flag,atomnames,xyzfile)
 end if
 
 

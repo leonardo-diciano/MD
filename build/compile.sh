@@ -11,8 +11,10 @@ gfortran -c ../External/f90getopt.F90
 gfortran -c ../src/header.f90 
 gfortran -c ../src/parser.f90 
 gfortran -c ../src/force_field_calc.f90 
+gfortran -c ../src/simulation_subroutines.f90 
 gfortran -c ../src/minimization.f90 
-gfortran -c ../src/propagation.f90 
+gfortran -c ../src/propagators.f90 
+gfortran -c ../src/simulation_mod.f90 
 gfortran -c ../src/ensemble.f90 
 gfortran -c ../src/main.f90 
 gfortran *.o -o ../md_program &&
