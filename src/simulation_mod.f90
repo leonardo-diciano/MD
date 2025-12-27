@@ -51,7 +51,7 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
     open(97, file=properties_outfile, status='replace', action='write')
     write(*,"(/A,A)") "Writing properties to ", properties_outfile
     write(97,"(A10,6(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure"
-    write(97,"(A10,6(A20))") "","kJ/mol", "kJ/mol","kJ/mol", "kJ/(mol Å)", "K", "Pa"
+    write(97,"(A10,6(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)", "K", "Pa"
 
     positions_list(previous,:,:) = positions(:,:) - velocities(:,:) * md_ts
 
