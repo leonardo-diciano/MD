@@ -12,15 +12,14 @@ module minimization_mod
 
 contains
 
-    subroutine minimization(positions,n_atoms,tot_pot,forces, debug_flag, xyzfile, atomnames,opt_method)
+    subroutine minimization(positions,n_atoms,tot_pot,forces, xyzfile, atomnames,opt_method)
         use definitions, only: wp
         use print_mod, only: recprt,recprt2,recprt3
         use force_field_mod, only: get_energy_gradient
         use lin_alg, only: mat_norm, displacement_vec
-        use parser_mod, only: min_max_iter, min_etol, min_ftol,min_alpha
+        use parser_mod, only: min_max_iter, min_etol, min_ftol,min_alpha, min_debug
 
         implicit none
-        logical, intent(in) :: debug_flag
         integer, intent(in) :: n_atoms,opt_method
         character(len=256), intent(in) :: xyzfile
         character(len=2), intent(in) :: atomnames(:)
@@ -41,7 +40,7 @@ contains
         real(kind=wp) :: displacement(n_atoms)
 
         write(*,"(/A/A)") "Energy minimization:","-------------------"
-        if (.not. debug_flag) then
+        if (.not. min_debug) then
             write(*,"(/A)") "iteration          U_tot              delta U            F_tot              delta F"
             write(*,"(A)") "----------------------------------------------------------------------------------------"
         else
@@ -69,7 +68,7 @@ contains
         iter = 0
 
         ! Print initial data into iteration table
-        if (.not. debug_flag) then
+        if (.not. min_debug) then
             write(*,"(i5,10x,2(F16.8,13x,A,8x))") iter, tot_pot,"/" , gradnorm,"/"
         else
             write(*,"(i5,2x,2(F12.6,8x,A,5x))") &
@@ -118,7 +117,7 @@ contains
                 beta=beta_numerator/beta_denominator
 
                 search_dir(:,:) = forces(:,:) / gradnorm + beta * search_dir_previous(:,:)
-                if (debug_flag) then
+                if (min_debug) then
                     write(*,*) "beta_denominator =", beta_denominator, "beta_numerator =", beta_numerator, "beta = ",beta
                     call recprt2("forces(:,:)/gradnorm",atomnames,forces(:,:)/gradnorm,n_atoms)
                     call recprt2("search direction",atomnames,search_dir,n_atoms)
@@ -147,7 +146,7 @@ contains
 
 
             ! uncomment this to see the displacements of all atoms (default: only max value is printed (max displacement))
-            !if (debug_flag) then
+            !if (min_debug) then
             !    call recprt2("Forces",atomnames,forces,n_atoms)
             !    call recprt2("Step taken",atomnames,best_step*forces/gradnorm,n_atoms)
             !    call mat_norm(forces/gradnorm, n_atoms,dummy_real)
@@ -167,7 +166,7 @@ contains
 
 
             ! Print iteration data
-            if (.not. debug_flag) then
+            if (.not. min_debug) then
                 write(*,"(i5,10x,4(F18.8,3x))") iter, tot_pot, tot_pot-tot_pot_previous, gradnorm,&
                                                 gradnorm-gradnorm_previous
             else
@@ -223,7 +222,7 @@ contains
             write(*,"(A/)") "WARNING: energy minimization did not converge in the max number of iterations"
         end if
 
-        if (debug_flag) then
+        if (min_debug) then
             call recprt2("forces on the atoms after minimization",atomnames(:),forces(:,:),n_atoms)
             write(*,"(A,F16.8)") "Resulting potential energy:", tot_pot
             call recprt2("Atomic coordinates BEFORE minimization",atomnames(:),input_positions(:,:),n_atoms)

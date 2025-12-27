@@ -48,7 +48,6 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
     ! PREPARE FILE THAT TRACKS PROPERTIES
     properties_outfile = xyzfile(:dot-1) // ".properties.txt"
     open(97, file=properties_outfile, status='replace', action='write')
-    write(*,"(/A,A)") "Writing properties to ", properties_outfile
     write(97,"(A10,6(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure"
     write(97,"(A10,6(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)", "K", "Pa"
 
@@ -66,7 +65,6 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
     dot = index(xyzfile, ".", back=.true.)     ! find last "." in xyzfile name
     traj_xyzfile = xyzfile(:dot-1) // ".traj" // xyzfile(dot:)
     open(98, file=traj_xyzfile, status='replace', action='write')
-    write(*,"(A,A)") "Writing trajectory to ", traj_xyzfile
     write(98,*) n_atoms
     write(98,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
     do i=1, size(positions,1), 1
@@ -167,8 +165,11 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
         end do
     end if
 
-    write(*,"(A,//A)") "====================================================","Simulation finished"
+    write(*,"(/A,//A)") "================================================================","Simulation finished"
     write(*,"(/A,F10.2,A)") "Total simulation time", md_ts * istep, " fs"
+    write(*,"(/A,A)") "Wrote properties to ", properties_outfile
+    write(*,"(A,A)") "Wrote trajectory to ", traj_xyzfile
+    write(*,"(     A)") "================================================================"
 
 end subroutine simulation
 

@@ -119,10 +119,10 @@ CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bon
 
 ! do minimization if -m flag active
 if (m_present) then
-    CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag,xyzfile,atomnames,2) ! conjugate gradient
+    CALL minimization(positions,n_atoms,tot_pot,forces,xyzfile,atomnames,2) ! conjugate gradient
     !
 else if (m1_present) then
-    CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag,xyzfile,atomnames,1) !steepest descent
+    CALL minimization(positions,n_atoms,tot_pot,forces,xyzfile,atomnames,1) !steepest descent
 end if
 
 if (p_present) then
@@ -136,7 +136,7 @@ end if
 deallocate(forces)
 
 CALL CPU_TIME(end_time)
-write(*,"(//A,ES18.8,A)") "Total CPU time: ", end_time - start_time, " seconds"
+write(*,"(/A,ES18.8,A)") "Total CPU time: ", end_time - start_time, " seconds"
 
 CALL final_phrase()
 

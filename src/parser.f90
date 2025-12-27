@@ -6,9 +6,10 @@ use definitions, only: wp
 implicit none
 
 ! minimization params
-public :: min_max_iter, min_etol, min_ftol, min_alpha
+public :: min_max_iter, min_etol, min_ftol, min_alpha, min_debug
 integer :: min_max_iter=1000
 real(kind=wp) :: min_etol=1.0e-6, min_ftol=1.0e-4, min_alpha = 1e-3
+logical :: min_debug = .false.
 
 ! MD params
 public :: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp, md_boxlength, md_debug
