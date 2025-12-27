@@ -126,7 +126,7 @@ else if (m1_present) then
 end if
 
 if (p_present) then
-    call simulation(positions,mweights,n_atoms,debug_flag,atomnames,xyzfile)
+    call simulation(positions,mweights,n_atoms,atomnames,xyzfile)
 end if
 
 

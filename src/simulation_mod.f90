@@ -1,12 +1,12 @@
 module simulation_mod
 contains
 
-subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)!,md_ts,nsteps)
+subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nsteps)
     use definitions, only: wp
     use print_mod, only: recprt2
     use lin_alg, only: displacement_vec
     use force_field_mod, only: get_energy_gradient
-    use parser_mod, only: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp
+    use parser_mod, only: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp, md_debug
     use simulation_subroutines, only: init_v, get_pressure, get_temperature
     use propagators, only: Verlet
 
@@ -15,7 +15,6 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
     real(kind=wp),intent(in) ::  mweights(n_atoms)
     real(kind=wp),intent(inout) :: positions(n_atoms,3)
     integer, intent(in) :: n_atoms
-    logical, intent(in) :: debug_flag
     character(len=2), intent(in) :: atomnames(:)
     character(len=256), intent(in) :: xyzfile
 
@@ -26,7 +25,7 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
     real(kind=wp) :: gradnorm, tot_pot, instant_temp, pressure, E_kin
     character(len=256) :: traj_xyzfile, properties_outfile
     integer :: istep, icartesian,i, dot, current, previous, new
-    logical :: suppress_flag = .true., debug = .false.
+    logical :: suppress_flag = .true.
 
     ! for intuitive storing of position data (since Verlet requires storing previous positions)
     previous = 1
@@ -40,7 +39,7 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
     positions_list(current,:,:) = positions(:,:) !x(t=0)
 
     call get_energy_gradient(positions_list(current,:,:),tot_pot,forces, gradnorm, suppress_flag) !F(t=0), E_pot(t=0)
-    call init_v(positions_list(current,:,:),velocities(:,:), n_atoms, mweights, debug_flag) !v(t=-1)
+    call init_v(positions_list(current,:,:),velocities(:,:), n_atoms, mweights, md_debug) !v(t=-1)
     do icartesian = 1,3
         acceleration(:,icartesian) = 1e-4 * forces(:,icartesian) / mweights(:)
         !acceleration in Å/fs^2                    in kJ/mol/Å           in g/mol;
@@ -55,7 +54,7 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
 
     positions_list(previous,:,:) = positions(:,:) - velocities(:,:) * md_ts
 
-    if (debug) then
+    if (md_debug) then
         write(*,"(/A,/A,/A)") "In propagation","---------------------------------------","Initialization:"
         call recprt2("forces",atomnames,forces,n_atoms)
         write(*,"(A,*(/,F10.6))") "masses: [g/mol]", mweights
@@ -67,6 +66,7 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
     dot = index(xyzfile, ".", back=.true.)     ! find last "." in xyzfile name
     traj_xyzfile = xyzfile(:dot-1) // ".traj" // xyzfile(dot:)
     open(98, file=traj_xyzfile, status='replace', action='write')
+    write(*,"(A,A)") "Writing trajectory to ", traj_xyzfile
     write(98,*) n_atoms
     write(98,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
     do i=1, size(positions,1), 1
@@ -74,7 +74,7 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
     end do
 
 
-    if (debug) then
+    if (md_debug) then
         write(*,"(/A,I5)") "Initial quantities at step ",istep
         call recprt2("r(t-Δt)",atomnames,positions_list(previous,:,:),n_atoms)
         call recprt2("r(t)",atomnames,positions_list(current,:,:),n_atoms)
@@ -85,7 +85,7 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! PERFORM THE STEPS ITERATIVELY
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    do while (istep<md_nsteps+1)
+    do while (istep<md_nsteps)
         istep = istep +1
 
         ! UPDATE POSITIONS
@@ -101,13 +101,11 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
         ! this prints info from the previous step
         write(97,"(I8,2x,6(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure
 
-
         ! TRACK DISPLACEMENT OF THE ATOMS
         call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),n_atoms,atomnames,displacement)
         total_displacement(:) = total_displacement(:) + displacement(:)
 
-
-        if (debug) then
+        if (md_debug) then
             call recprt2("New forces",atomnames,forces,n_atoms)
             call recprt2("New accelerations",atomnames,acceleration,n_atoms)
             call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),n_atoms,atomnames,displacement)
@@ -132,7 +130,7 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
         end do
 
 
-        if (debug_flag) then
+        if (md_debug) then
             write(*,"(/A,I5)") "New quantities at step ",istep
             call recprt2("r(t-Δt) = positions_list(previous,:,:) [Å]",atomnames,positions_list(previous,:,:),n_atoms)
             call recprt2("r(t) = positions_list(current,:,:) [Å]",atomnames,positions_list(current,:,:),n_atoms)
@@ -155,7 +153,7 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
 
     displacement(:) = 0
 
-    if (debug) then
+    if (md_debug) then
         write(*,"(/A)") "Throughout the simulation, the atoms displaced: (no MSD, but initial vs final coords)"
         call displacement_vec(positions_list(current,:,:),input_positions,n_atoms,atomnames, displacement)
         write(*,*) "Displacements (summed all steps)"
@@ -169,8 +167,8 @@ subroutine simulation(positions,mweights,n_atoms, debug_flag, atomnames,xyzfile)
         end do
     end if
 
-    write(*,"(/A,A)") "Trajectory was written to: ", traj_xyzfile
-    write(*,"(A,F10.2,A)") "Total simulation time", md_ts * istep, " fs"
+    write(*,"(A,//A)") "====================================================","Simulation finished"
+    write(*,"(/A,F10.2,A)") "Total simulation time", md_ts * istep, " fs"
 
 end subroutine simulation
 
