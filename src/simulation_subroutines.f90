@@ -110,9 +110,9 @@ subroutine get_tot_momentum(velocities,mweights, n_atoms, tot_momentum)
         end do
     end do
 
-    if (md_debug) then
-        write(*,"(/A,3(F10.6),A)") "The total momentum of the system is ", tot_momentum, " g Å/(mol fs)"
-    end if
+    !if (md_debug) then
+    !    write(*,"(/A,3(F10.6),A)") "The total momentum of the system is ", tot_momentum, " g Å/(mol fs)"
+    !end if
 end subroutine get_tot_momentum
 
 subroutine get_E_kin(velocities, mweights, n_atoms, E_kin)

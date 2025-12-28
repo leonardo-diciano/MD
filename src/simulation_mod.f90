@@ -2,12 +2,12 @@ module simulation_mod
 contains
 
 subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nsteps)
-    use definitions, only: wp
-    use print_mod, only: recprt2
+    use definitions, only: wp, avogad
+    use print_mod, only: recprt2, recprt3
     use lin_alg, only: displacement_vec
     use force_field_mod, only: get_energy_gradient
-    use parser_mod, only: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp, md_debug
-    use simulation_subroutines, only: init_v, get_pressure, get_temperature
+    use parser_mod, only: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp, md_debug, md_fix_com_mom
+    use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
     use propagators, only: Verlet
 
     implicit none
@@ -22,10 +22,10 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
     real(kind=wp) :: displacement(n_atoms), positions_previous(n_atoms,3), input_positions(n_atoms,3), forces(n_atoms,3), &
                     acceleration(n_atoms,3), total_displacement(n_atoms), velocities(n_atoms,3)
     real(kind=wp) :: positions_list(3,n_atoms,3)
-    real(kind=wp) :: gradnorm, tot_pot, instant_temp, pressure, E_kin
+    real(kind=wp) :: gradnorm, tot_pot, instant_temp, pressure, E_kin, tot_momentum(3), tot_momentum_norm
     character(len=256) :: traj_xyzfile, properties_outfile
     integer :: istep, icartesian,i, dot, current, previous, new
-    logical :: suppress_flag = .true.
+    logical :: suppress_flag = .true., debug_print_all_matrices = .false.
 
     ! for intuitive storing of position data (since Verlet requires storing previous positions)
     previous = 1
@@ -46,10 +46,11 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
     end do
 
     ! PREPARE FILE THAT TRACKS PROPERTIES
+    dot = index(xyzfile, ".", back=.true.)     ! find last "." in xyzfile name
     properties_outfile = xyzfile(:dot-1) // ".properties.txt"
     open(97, file=properties_outfile, status='replace', action='write')
-    write(97,"(A10,6(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure"
-    write(97,"(A10,6(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)", "K", "Pa"
+    write(97,"(A10,7(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure", "COM_momentum"
+    write(97,"(A10,7(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)", "K", "Pa", "gÅ/fs"
 
     positions_list(previous,:,:) = positions(:,:) - velocities(:,:) * md_ts
 
@@ -62,7 +63,6 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
     end if
 
     ! PREPARE TRAJECTORY FILE: traj_xyzfile
-    dot = index(xyzfile, ".", back=.true.)     ! find last "." in xyzfile name
     traj_xyzfile = xyzfile(:dot-1) // ".traj" // xyzfile(dot:)
     open(98, file=traj_xyzfile, status='replace', action='write')
     write(98,*) n_atoms
@@ -90,6 +90,28 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
         call Verlet(positions_list(previous,:,:),positions_list(current,:,:),acceleration(:,:), &
                             n_atoms, positions_list(new,:,:), velocities(:,:)) ! get x(t+1) and v(t)
 
+        ! SCALE VELOCITIES TO ENSURE ZERO MOMENTUM OF THE CENTER OF MASS
+        call get_tot_momentum(velocities,mweights, n_atoms, tot_momentum)
+        tot_momentum_norm = 0
+        do icartesian = 1,3
+            tot_momentum_norm = tot_momentum_norm + tot_momentum(icartesian)**2
+        end do
+        tot_momentum_norm = SQRT(tot_momentum_norm)
+
+        if (md_fix_com_mom) then
+            do icartesian = 1,3
+                velocities(:,icartesian) = velocities(:,icartesian) - tot_momentum(icartesian) / SUM(mweights)
+            end do
+
+            if (md_debug) then
+                write(*,"(/A)") "After adapting the velocities with respect to the momentum and mass:"
+                call get_tot_momentum(velocities,mweights, n_atoms, tot_momentum) !THIS SHOULD NOW BE ZERO
+                if (debug_print_all_matrices) then
+                    call recprt3("v(t_0) = velocities(:,:) [Å/fs]",velocities(:,:),n_atoms)
+                end if
+            end if
+        end if
+
         ! GET PROPERTIES
         call get_temperature(velocities, mweights,n_atoms, instant_temp, E_kin) ! use v(t)
         call get_pressure(positions_list(current,:,:), forces,instant_temp,n_atoms, pressure) ! use x(t) and v(t)
@@ -97,27 +119,21 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
         ! WRITE QUANTITIES FILE
         open(97, file=properties_outfile, status='old', action='write')
         ! this prints info from the previous step
-        write(97,"(I8,2x,6(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure
+        write(97,"(I8,2x,7(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure, &
+                                            tot_momentum_norm/avogad
+        if (debug_print_all_matrices) then
+            write(*,"(/A,I5)") "New quantities at step ",istep
+            !call recprt2("r(t-Δt) = positions_list(previous,:,:) [Å]",atomnames,positions_list(previous,:,:),n_atoms)
+            call recprt2("r(t) = positions_list(current,:,:) [Å]",atomnames,positions_list(current,:,:),n_atoms)
+            !call recprt2("r(t+Δt) = positions_list(new,:,:) [Å]",atomnames,positions_list(new,:,:),n_atoms)
+            call recprt2("F(t) = forces(:,:) [kJ/mol]",atomnames,forces(:,:),n_atoms)
+            call recprt2("a(t) = acceleration(:,:) [Å/(fs)^2]",atomnames,acceleration(:,:),n_atoms)
+            call recprt2("v(t) = velocities(:,:) [Å/fs]",atomnames,velocities(:,:),n_atoms)
+        end if
 
         ! TRACK DISPLACEMENT OF THE ATOMS
         call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),n_atoms,atomnames,displacement)
         total_displacement(:) = total_displacement(:) + displacement(:)
-
-        if (md_debug) then
-            call recprt2("New forces",atomnames,forces,n_atoms)
-            call recprt2("New accelerations",atomnames,acceleration,n_atoms)
-            call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),n_atoms,atomnames,displacement)
-            total_displacement(:) = total_displacement(:) + displacement
-            write(*,*) "Displacements"
-            do i = 1, n_atoms
-                write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
-            end do
-            write(*,"(/A,F12.8,A)") "  sum = ", sum(displacement(:)), " Å"
-        end if
-        positions_list(new,:,:) = 0
-        positions_list(new,:,:) = 2 * positions_list(current,:,:) - positions_list(previous,:,:) &
-                                    + md_ts**2 * acceleration(:,:)
-
 
         ! WRITE TRAJECTORY FILE
         open(98, file=traj_xyzfile, status='old', action='write')
@@ -127,16 +143,7 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
             write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions_list(new,i,:)
         end do
 
-
-        if (md_debug) then
-            write(*,"(/A,I5)") "New quantities at step ",istep
-            call recprt2("r(t-Δt) = positions_list(previous,:,:) [Å]",atomnames,positions_list(previous,:,:),n_atoms)
-            call recprt2("r(t) = positions_list(current,:,:) [Å]",atomnames,positions_list(current,:,:),n_atoms)
-            call recprt2("r(t+Δt) = positions_list(new,:,:) [Å]",atomnames,positions_list(new,:,:),n_atoms)
-            call recprt2("F(t) = forces(:,:) [kJ/mol]",atomnames,forces(:,:),n_atoms)
-            call recprt2("a(t) = acceleration(:,:) [Å/(fs)^2]",atomnames,acceleration(:,:),n_atoms)
-        end if
-
+        ! PREPARE NEXT STEP
         positions_list(previous,:,:) = positions_list(current,:,:)
         positions_list(current,:,:) = positions_list(new,:,:)
 

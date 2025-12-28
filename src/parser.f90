@@ -16,7 +16,7 @@ public :: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp, md_boxl
 integer :: md_nsteps=1000
 real(kind=wp) :: md_ts=1.0 , md_temp=300.0, md_boxlength = 20
 character(len=32) :: md_ensemble="NVE", md_thermostat="Bussi",md_barostat="PR"
-logical :: md_debug = .false.
+logical :: md_debug = .false., md_fix_com_mom = .false.
 
 contains
 
