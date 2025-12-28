@@ -707,7 +707,7 @@ subroutine get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag
 
     CALL force_field_calc(positions,tot_pot,forces,.false.,suppress_flag)
 
-    call mat_norm(forces,gradnorm)
+    call mat_norm(forces,gradnorm,n_atoms)
 
     !if (.not. suppress_flag) then
     !        write(*,*) "gradnorm =",gradnorm

@@ -17,5 +17,10 @@ module propagators
         velocities(:,:) = (positions_new(:,:) - positions_previous(:,:))/(2*md_ts) !v(t)
     end subroutine Verlet
 
+    subroutine velocity_verlet()
+        use definitions, only: wp
+        use parser_mod, only: md_ts
+        use force_field_mod, only: n_atoms
+    end subroutine
 
 end module propagators
