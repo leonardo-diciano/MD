@@ -97,7 +97,7 @@ for smarts, atom_type in smarts_to_type.items():
             if symb[0] == atom_type.capitalize()[0]: #Check that is the correct element 
                 if list_atom_types_to_print[atom_idx] is None:
                     list_atom_types_to_print[atom_idx] = [atom_idx + 1,symb, atom_type, float(mass_dict[symb])]
-                    atom_assigned_types[atom_idx]=atom_type
+                    atom_assigned_types[atom_idx]=atom_type                  
 
 
 
