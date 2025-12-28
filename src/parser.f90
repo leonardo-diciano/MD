@@ -12,11 +12,20 @@ real(kind=wp) :: min_etol=1.0e-6, min_ftol=1.0e-4, min_alpha = 1e-3
 logical :: min_debug = .false.
 
 ! MD params
-public :: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp, md_boxlength, md_debug
+public :: md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_boxlength, md_debug
 integer :: md_nsteps=1000
-real(kind=wp) :: md_ts=1.0 , md_temp=300.0, md_boxlength = 20
-character(len=32) :: md_ensemble="NVE", md_thermostat="Bussi",md_barostat="PR"
+real(kind=wp) :: md_ts=1.0 ,md_boxlength = 20, md_temp=300.0, md_press=1.0 ! in bar
+character(len=32) :: md_ensemble="NVE"
 logical :: md_debug = .false., md_fix_com_mom = .false.
+
+! Bussi thermostat params
+public :: bus_tau
+real(kind=wp) :: bus_tau = 100 ! fs
+
+! Berendsen barostat params
+public :: ber_tau, ber_k
+real(kind=wp) :: ber_tau = 5000 !fs, following GROMACS default  
+real(kind=wp) :: ber_k = 4.6e-5 ! bar^{-1} for water at 300K and 1 atm
 
 contains
 
@@ -250,13 +259,13 @@ end subroutine
 
 
 
-subroutine parser_input(inputfile,xyzfile, topofile, debug_flag, t_present, c_present, m_present, m1_present,&
+subroutine parser_input(inputfile,xyzfile, topofile, t_present, c_present, m_present, m1_present,&
          p_present)
 
 
 character(len=256), intent(in) :: inputfile
 character(len=256), intent(out) :: xyzfile, topofile
-logical, intent(inout) :: debug_flag, t_present, c_present, m_present, m1_present,p_present
+logical, intent(inout) :: t_present, c_present, m_present, m1_present,p_present
 integer :: io
 logical :: mini_block = .false., md_block = .false.
 character(len=256) :: line
@@ -298,6 +307,7 @@ do
         cycle
     end if
 
+  
 
 
     if (mini_block) then
@@ -323,11 +333,15 @@ do
             read(line,*) dummy_symb, md_temp
         elseif (index(trim(line), "ensemble") == 1) then
             read(line,*) dummy_symb, md_ensemble
-        elseif (index(trim(line),"thermostat") == 1) then
-            read(line,*) dummy_symb, md_thermostat
-        elseif (index(trim(line),"barostat") == 1) then
-            read(line,*) dummy_symb, md_barostat
-        endif
+        elseif (index(trim(line),"press") == 1) then
+            read(line,*) dummy_symb, md_press
+        elseif (index(trim(line),"berendsen_tau") == 1) then
+            read(line,*) dummy_symb, ber_tau
+        elseif (index(trim(line),"berendsen_k") == 1) then
+            read(line,*) dummy_symb, ber_k
+        elseif (index(trim(line),"bussi_tau") == 1) then
+            read(line,*) dummy_symb, bus_tau
+        end if
     end if
 
 end do
