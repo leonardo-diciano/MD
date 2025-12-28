@@ -8,7 +8,7 @@ for flag in sys.argv:
     if flag == "-h":
         helpmode = True
         print("This script requires numpy and matplotlib")
-        print("example usage: python3 plot.py 'properties_file' -energies -savefig")
+        print("usage: python3 plot.py [-h] 'properties_file' [-energies] [-e_temp] [...] [-savefig]")
         print("\nyou may use different flags to track different properties:")
         print("     -e_tot          plot the total energy")
         print("     -e_pot          plot the potential energy")
