@@ -41,12 +41,13 @@ end subroutine
 
 subroutine berendsen_barostat(positions,new_P)
 use definitions, only: wp
+use force_field_mod, only: n_atoms
 use parser_mod, only: md_ts, md_press,ber_tau,ber_k
 
 implicit none
     
 real(kind=wp), intent(in) :: new_P
-real(kind=wp), allocatable, intent(inout) :: positions (:,:)
+real(kind=wp), intent(inout) :: positions (n_atoms,3)
 real(kind=wp) :: lambda
 
 ! Calculate the rescaling of the cell axis given by different P

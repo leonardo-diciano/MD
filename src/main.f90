@@ -3,20 +3,21 @@ program MD
 use definitions, only: wp
 use f90getopt
 use header_mod, only: pine_tree, final_phrase
-use parser_mod, only: parser_top, parser_input
-use force_field_mod
+use parser_mod, only: parser_top, parser_input, atomnames
+use force_field_mod, only: n_atoms,n_bonds,n_angles,n_torsions,n_impdie, bond_params, angle_params,& 
+                    impdihedrals_params, tors_params,lj_params,resp_charges,mweights, force_field_calc
 use minimization_mod, only: minimization
 use pbc_mod, only: define_box
 use simulation_mod, only: simulation
 
 implicit none
 character(len=256) :: xyzfile, topofile, inputfile
-character(len=2), allocatable :: atomtypes(:),atomnames(:)
-real(kind=wp), allocatable :: mweights(:),positions(:,:), forces(:,:)
+character(len=2), allocatable :: atomtypes(:)
+real(kind=wp), allocatable :: positions(:,:), forces(:,:)
 real(kind=wp) :: start_time, end_time, tot_pot, gradnorm
 character(len=1) :: short
 logical :: t_present = .false. , c_present = .false., m_present = .false., m1_present =.false.,&
-         p_present = .false., i_present = .false.
+         p_present = .false., i_present = .false., suppress_flag = .true., debug_flag
 
 ! Parse the command line arguments with f90getopt library
 
@@ -90,8 +91,8 @@ do
 end do
 
 if (i_present) then
-    CALL parser_input(inputfile,xyzfile, topofile, debug_flag, t_present, c_present, m_present, m1_present,&
-         p_present)
+    CALL parser_input(inputfile,xyzfile, topofile, t_present, c_present, m_present, m1_present,&
+        p_present)
 else
     if (t_present .and. c_present) then ! both mandatory options are present
         write(*,FMT = '( "The topology file is: ", A50 )') topofile
@@ -108,25 +109,22 @@ end if
 CALL CPU_TIME(start_time)
 CALL pine_tree()
 
-CALL parser_top(xyzfile,topofile,n_atoms,n_bonds,n_angles,n_impdie,n_torsions,mweights,positions,atomtypes,bond_params,&
-                angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag,atomnames)
-
+CALL parser_top(xyzfile,topofile,positions,atomtypes,debug_flag)
 
 
 allocate(forces(n_atoms,3))
-CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
-            impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,debug_flag, suppress_flag = .false.)
+CALL force_field_calc(positions,tot_pot,forces,debug_flag, suppress_flag = .false.)
 
 ! do minimization if -m flag active
 if (m_present) then
-    CALL minimization(positions,n_atoms,tot_pot,forces,xyzfile,atomnames,2) ! conjugate gradient
+    CALL minimization(positions,tot_pot,forces,xyzfile,2) ! conjugate gradient
     !
 else if (m1_present) then
-    CALL minimization(positions,n_atoms,tot_pot,forces,xyzfile,atomnames,1) !steepest descent
+    CALL minimization(positions,tot_pot,forces,xyzfile,1) !steepest descent
 end if
 
 if (p_present) then
-    call simulation(positions,mweights,n_atoms,atomnames,xyzfile)
+    call simulation(positions,xyzfile)
 end if
 
 

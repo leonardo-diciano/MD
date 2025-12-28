@@ -5,6 +5,10 @@ module parser_mod
 use definitions, only: wp
 implicit none
 
+! General
+public :: atomnames
+character(len=2), allocatable :: atomnames(:)
+
 ! minimization params
 public :: min_max_iter, min_etol, min_ftol, min_alpha, min_debug
 integer :: min_max_iter=10000
@@ -12,10 +16,10 @@ real(kind=wp) :: min_etol=1.0e-6, min_ftol=1.0e-4, min_alpha = 1e-3
 logical :: min_debug = .false.
 
 ! MD params
-public :: md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_boxlength, md_debug
+public :: md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_boxlength, md_debug, md_int
 integer :: md_nsteps=1000
-real(kind=wp) :: md_ts=1.0 ,md_boxlength = 20, md_temp=300.0, md_press=1.0 ! in bar
-character(len=32) :: md_ensemble="NVE"
+real(kind=wp) :: md_ts=1.0 ,md_boxlength = 20, md_temp=300.0, md_press=100000.0! in Pa
+character(len=32) :: md_ensemble="NVE", md_int="Verlet"
 logical :: md_debug = .false., md_fix_com_mom = .false.
 
 ! Bussi thermostat params
@@ -25,21 +29,20 @@ real(kind=wp) :: bus_tau = 100 ! fs
 ! Berendsen barostat params
 public :: ber_tau, ber_k
 real(kind=wp) :: ber_tau = 5000 !fs, following GROMACS default  
-real(kind=wp) :: ber_k = 4.6e-5 ! bar^{-1} for water at 300K and 1 atm
+real(kind=wp) :: ber_k = 4.6e-10 ! Pa^{-1} for water at ~ 300K and 1 atm
 
 contains
 
-subroutine parser_top(xyzfile,topofile,n_atoms,n_bonds,n_angles,n_impdie,n_torsions,mweights,positions,atomtypes,bond_params,&
-                angle_params,impdihedrals_params,tors_params,lj_params,resp_charges,debug_flag, atomnames)
+subroutine parser_top(xyzfile,topofile,positions,atomtypes,debug_flag)
 use definitions, only: wp
+use force_field_mod, only: n_atoms,n_bonds,n_angles,n_torsions,n_impdie, bond_params, angle_params,& 
+                    impdihedrals_params, tors_params,lj_params,resp_charges,mweights
 implicit none
 
 character(len=*), intent(in) :: xyzfile, topofile
 logical,intent(in) :: debug_flag
-integer :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
-character(len=2), allocatable, intent(out) :: atomnames(:), atomtypes(:)
-real(kind=wp), allocatable, intent(out) :: mweights(:),positions(:,:),bond_params(:,:),angle_params(:,:),&
-                                           impdihedrals_params(:,:),tors_params(:,:),lj_params(:,:), resp_charges(:,:)
+character(len=2), allocatable, intent(out) :: atomtypes(:)
+real(kind=wp), allocatable, intent(out) :: positions(:,:)
 character(len=256) :: line
 logical :: inAtomBlock,inBondBlock,inAngleBlock,inImpDieBlock, inDieBlock, inLJBlock, inChgBlock
 integer :: count, dummy_idx, io, i
@@ -329,6 +332,8 @@ do
             read(line,*) dummy_symb, md_ts
         elseif (index(trim(line),"nsteps") == 1) then
             read(line,*) dummy_symb, md_nsteps
+        elseif (index(trim(line),"integrator") == 1) then
+            read(line,*) dummy_symb, md_int
         elseif (index(trim(line),"temp") == 1) then
             read(line,*) dummy_symb, md_temp
         elseif (index(trim(line), "ensemble") == 1) then

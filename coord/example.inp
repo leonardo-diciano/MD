@@ -1,0 +1,15 @@
+topology 9methanes.top
+coords 9methanes.xyz 
+
+#comments
+[minimize] 
+conj_grad 
+etol 1.0e-6 
+ftol 1.0e-6
+max_iter 10000
+
+[run_md]
+ts 0.5  # in fs
+nsteps 100000
+temp 300 # K
+ensemble NVT # or NVE or NPT 
