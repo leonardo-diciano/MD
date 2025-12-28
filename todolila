@@ -1,0 +1,5 @@
+- (...) finish benchmark of alpha values for minimization (both steep, conj)
+- (...) check functionality of propagator
+- PERIODIC BOUNDARY CONDITIONS
+- box
+- multiple particles in the box

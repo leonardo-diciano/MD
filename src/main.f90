@@ -6,7 +6,8 @@ use header_mod, only: pine_tree, final_phrase
 use parser_mod, only: parser_top, parser_input
 use force_field_mod
 use minimization_mod, only: minimization
-use propagation, only: Verlet_propagator
+use pbc_mod, only: define_box
+use simulation_mod, only: simulation
 
 implicit none
 character(len=256) :: xyzfile, topofile, inputfile
@@ -70,13 +71,14 @@ do
                 "  -t file.top  --top=file.top      Topology file - Required",&
                 "  -c coord.xyz --coord=coord.xyz   XYZ coordinate file - Required",&
                 "  -m [sd,cg]   --minimize          Require minimization with steepest descent(sd) or conjugate gradient(cg)",&
+                "  -p           --minimize          Propagate the system using the Verlet integrator and default settings",&
                 "  -h           --help              Print this help screen",&
                 "  -d           --debug             Print extended output for debug",&
                 "Examples:",&
                 "  main -t file.top -c coord.xyz",&
                 "  main -top=file.top -coord=coord.xyz"
             stop
-        case("m") !minimize 
+        case("m") !minimize
             if ((trim(optarg) > "") .and. (trim(optarg)) == 'sd') then
                 m1_present = .true. ! if explicitly requested for sd
             else
@@ -117,21 +119,24 @@ CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bon
 
 ! do minimization if -m flag active
 if (m_present) then
-    CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag,xyzfile,atomnames,2) ! conjugate gradient
+    CALL minimization(positions,n_atoms,tot_pot,forces,xyzfile,atomnames,2) ! conjugate gradient
     !
 else if (m1_present) then
-    CALL minimization(positions,n_atoms,tot_pot,forces, debug_flag,xyzfile,atomnames,1) !steepest descent
+    CALL minimization(positions,n_atoms,tot_pot,forces,xyzfile,atomnames,1) !steepest descent
 end if
 
 if (p_present) then
-    !call init_v()
-    call Verlet_propagator(positions,mweights,n_atoms,debug_flag,atomnames,xyzfile)!,timestep,nsteps)
+    call simulation(positions,mweights,n_atoms,atomnames,xyzfile)
 end if
+
+
+!call define_box()
+
 
 deallocate(forces)
 
 CALL CPU_TIME(end_time)
-write(*,*) "Total CPU time: ", end_time - start_time, " seconds"
+write(*,"(/A,ES18.8,A)") "Total CPU time: ", end_time - start_time, " seconds"
 
 CALL final_phrase()
 
