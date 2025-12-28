@@ -6,7 +6,7 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
     use print_mod, only: recprt2, recprt3
     use lin_alg, only: displacement_vec
     use force_field_mod, only: get_energy_gradient
-    use parser_mod, only: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp, md_debug, md_fix_com_mom
+    use parser_mod, only: md_ts,md_nsteps,md_ensemble,md_barostat,md_thermostat,md_temp, md_debug, md_fix_com_mom,md_summaries
     use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
     use propagators, only: Verlet
 
@@ -26,6 +26,16 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
     character(len=256) :: traj_xyzfile, properties_outfile
     integer :: istep, icartesian,i, dot, current, previous, new
     logical :: suppress_flag = .true., debug_print_all_matrices = .false.
+
+
+    write(*,"(/A,/A)") "================================================================","... starting the simulation"
+    write(*,"(/A)") "MD Settings:"
+    write(*,"(A15,F12.6,A)") "step length = ", md_ts, " fs"
+    write(*,"(A15,I12)") "nsteps = ", md_nsteps
+    write(*,"(A15,F12.3,A)") "Temperature = ", md_temp, " K "
+    write(*,"(A15,A12)") "Ensemble = ", md_ensemble
+    write(*,"(A15,A12)") "Barostat = ", md_barostat
+    write(*,"(A15,A12)") "Thermostat = ", md_thermostat
 
     ! for intuitive storing of position data (since Verlet requires storing previous positions)
     previous = 1
@@ -55,7 +65,6 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
     positions_list(previous,:,:) = positions(:,:) - velocities(:,:) * md_ts
 
     if (md_debug) then
-        write(*,"(/A,/A,/A)") "In propagation","---------------------------------------","Initialization:"
         call recprt2("forces",atomnames,forces,n_atoms)
         write(*,"(A,*(/,F10.6))") "masses: [g/mol]", mweights
        call recprt2("acceleration = forces / masses",atomnames,acceleration,n_atoms)
@@ -79,6 +88,12 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
         !call recprt2("r(t+Δt)",atomnames,positions_list(new,:,:),n_atoms)
         !call recprt2("acceleration",atomnames,acceleration,n_atoms)
     end if
+
+    write(*,"(/A)") "... initialization done"
+    write(*,"(/A,/)") "... start taking steps"
+    write(*,*) "SUMMARY TABLE:"
+    write(*,"(A10,7(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure", "COM_momentum"
+    write(*,"(A10,7(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)", "K", "Pa", "gÅ/fs"
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! PERFORM THE STEPS ITERATIVELY
@@ -121,11 +136,15 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
         ! this prints info from the previous step
         write(97,"(I8,2x,7(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure, &
                                             tot_momentum_norm/avogad
+        if (MODULO(istep-1,md_summaries)==0 .or. istep ==md_nsteps) then
+            write(*,"(I8,2x,7(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure, &
+                                            tot_momentum_norm/avogad
+        end if
         if (debug_print_all_matrices) then
             write(*,"(/A,I5)") "New quantities at step ",istep
-            !call recprt2("r(t-Δt) = positions_list(previous,:,:) [Å]",atomnames,positions_list(previous,:,:),n_atoms)
+            call recprt2("r(t-Δt) = positions_list(previous,:,:) [Å]",atomnames,positions_list(previous,:,:),n_atoms)
             call recprt2("r(t) = positions_list(current,:,:) [Å]",atomnames,positions_list(current,:,:),n_atoms)
-            !call recprt2("r(t+Δt) = positions_list(new,:,:) [Å]",atomnames,positions_list(new,:,:),n_atoms)
+            call recprt2("r(t+Δt) = positions_list(new,:,:) [Å]",atomnames,positions_list(new,:,:),n_atoms)
             call recprt2("F(t) = forces(:,:) [kJ/mol]",atomnames,forces(:,:),n_atoms)
             call recprt2("a(t) = acceleration(:,:) [Å/(fs)^2]",atomnames,acceleration(:,:),n_atoms)
             call recprt2("v(t) = velocities(:,:) [Å/fs]",atomnames,velocities(:,:),n_atoms)
@@ -172,7 +191,8 @@ subroutine simulation(positions,mweights,n_atoms, atomnames,xyzfile)!,md_ts,nste
         end do
     end if
 
-    write(*,"(/A,//A)") "================================================================","Simulation finished"
+    write(*,"(3(/A40))") "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!","!!   Simulation finished    !!",&
+                         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     write(*,"(/A,F10.2,A)") "Total simulation time", md_ts * istep, " fs"
     write(*,"(/A,A)") "Wrote properties to ", properties_outfile
     write(*,"(A,A)") "Wrote trajectory to ", traj_xyzfile
