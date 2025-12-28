@@ -5,10 +5,13 @@ module force_field_mod
 use definitions, only: wp
 implicit none
 
+public :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie, bond_params, angle_params, impdihedrals_params, &
+                    tors_params,lj_params,resp_charges,mweights
+
 integer :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
 real(kind=wp), allocatable ::bond_params(:,:),angle_params(:,:),impdihedrals_params(:,:),&
-                    tors_params(:,:),lj_params(:,:),resp_charges(:,:)
-logical :: debug_flag, suppress_flag
+                    tors_params(:,:),lj_params(:,:),resp_charges(:,:),mweights(:)
+
 
 
 contains
@@ -23,18 +26,14 @@ function cross_product(a, b) result(cross)
   cross(3) = a(1) * b(2) - a(2) * b(1)
 end function
 
-subroutine force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
-            impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces, debug_flag, suppress_flag)
+subroutine force_field_calc(positions,tot_pot,forces, debug_flag, suppress_flag)
 
 use definitions, only: wp, pi, kcal_to_kJ, safeguard
 use print_mod, only: recprt,recprt3
 implicit none
 
-integer, intent(in) :: n_atoms,n_bonds,n_angles,n_torsions,n_impdie
 logical, intent(in) :: debug_flag,suppress_flag
-real(kind=wp), intent(in) :: positions(n_atoms,3),bond_params(n_bonds,4),angle_params(n_angles,5),&
-                    impdihedrals_params(n_impdie,8),tors_params(n_torsions,8),lj_params(n_atoms,3),resp_charges(n_atoms,2)
-
+real(kind=wp), intent(in) :: positions(n_atoms,3)
 real(kind=wp), intent(out) :: tot_pot, forces(n_atoms,3)
 real(kind=wp) :: charge_to_kJ_mol, bond_pot, distance, angle_pot, angle , die_pot, imp_die_pot,&
                  coulomb_pot, lj_pot, pot_14, pot
@@ -42,7 +41,7 @@ real(kind=wp) :: d12(3), d23(3), d34(3), f_magnitude, epsilon, sigma, f1(3), f3(
          start_time, end_time
 integer :: i, j, k, row, a1, a2, a3, a4, pair(2),one_bond_list(n_bonds,2), two_bonds_list(n_angles,2)
 integer, allocatable :: dummy_pairs(:,:), non_bonded_pairs(:,:), three_bonds_list(:,:)
-real(kind=wp) :: a(3),b(3),a_norm,b_norm, dihedral, cap_A(3), cap_B(3), cap_C(3), ratio
+real(kind=wp) :: a(3),b(3),a_norm,b_norm, dihedral, cap_A(3), cap_B(3), ratio
 logical :: is_bonded
 
 
@@ -496,7 +495,7 @@ do i=1, size(non_bonded_pairs,dim=1), 1      ! Iterate over the number of non-bo
                         ! epsilon a1       epsilon a2
         epsilon = SQRT(lj_params(a1,3) * lj_params(a2,3)) * kcal_to_kJ
                     ! sigma a1           sigma a2
-        sigma =  0.5 * (lj_params(a1,2) * 2**(-1/6) + lj_params(a2,2) * 2**(-1/6))
+        sigma =  0.5 * (lj_params(a1,2) * 2**(-1./6.) + lj_params(a2,2) * 2**(-1./6.))
 
         ! Calculate the force magnitude
         f_magnitude = 24 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )
@@ -617,7 +616,7 @@ do i=1, size(three_bonds_list,dim=1) , 1
                     ! epsilon a1       epsilon a2
     epsilon = SQRT(lj_params(a1,3) * lj_params(a2,3)) * kcal_to_kJ
                 ! sigma a1                          sigma a2
-    sigma =  0.5 * (lj_params(a1,2) * 2**(-1/6) + lj_params(a2,2) * 2**(-1/6))
+    sigma =  0.5 * (lj_params(a1,2) * 2**(-1./6.) + lj_params(a2,2) * 2**(-1./6.))
 
     ! Calculate the force magnitude
     f_magnitude = 12 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )
@@ -704,14 +703,11 @@ subroutine get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag
     logical, intent(in) :: suppress_flag
     real(kind=wp), intent(out) :: tot_pot, gradnorm, forces(n_atoms,3)
 
-    integer :: iatom, icartesian
-
     !turn the .false. off if you want to see every energy calculation debug print in every iteration of the energy minimization
 
-    CALL force_field_calc(n_atoms,n_bonds,n_angles,n_impdie,n_torsions,positions,bond_params,angle_params,&
-            impdihedrals_params,tors_params,lj_params,resp_charges,tot_pot,forces,.false.,suppress_flag)
+    CALL force_field_calc(positions,tot_pot,forces,.false.,suppress_flag)
 
-    call mat_norm(forces,n_atoms,gradnorm)
+    call mat_norm(forces,gradnorm)
 
     !if (.not. suppress_flag) then
     !        write(*,*) "gradnorm =",gradnorm

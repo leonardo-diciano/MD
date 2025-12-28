@@ -12,17 +12,16 @@ module minimization_mod
 
 contains
 
-    subroutine minimization(positions,n_atoms,tot_pot,forces, xyzfile, atomnames,opt_method)
+    subroutine minimization(positions,tot_pot,forces, xyzfile,opt_method)
         use definitions, only: wp
         use print_mod, only: recprt,recprt2,recprt3
-        use force_field_mod, only: get_energy_gradient
+        use force_field_mod, only: get_energy_gradient, n_atoms
         use lin_alg, only: mat_norm, displacement_vec
-        use parser_mod, only: min_max_iter, min_etol, min_ftol,min_alpha, min_debug
+        use parser_mod, only: atomnames, min_max_iter, min_etol, min_ftol,min_alpha, min_debug
 
         implicit none
-        integer, intent(in) :: n_atoms,opt_method
+        integer, intent(in) :: opt_method
         character(len=256), intent(in) :: xyzfile
-        character(len=2), intent(in) :: atomnames(:)
         real(kind=wp), intent(inout) :: tot_pot
         real(kind=wp), intent(inout) :: forces(n_atoms,3),positions(n_atoms,3)
 
@@ -230,7 +229,7 @@ contains
             call recprt2("Change in atomic coordinates THROUGH minimization",atomnames(:),&
                                                             positions(:,:)-input_positions(:,:),n_atoms)
         end if
-        call displacement_vec(input_positions,positions,n_atoms,atomnames, displacement)
+        call displacement_vec(input_positions,positions, displacement)
         write(*,*) "Displacements"
         do i = 1, n_atoms
             write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
