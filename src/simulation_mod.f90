@@ -1,6 +1,22 @@
 module simulation_mod
 contains
 
+subroutine simulation(positions,xyzfile)
+    use definitions, only: wp
+    use force_field_mod, only: n_atoms
+    use parser_mod, only: md_int
+    implicit none
+    real(kind=wp),intent(inout) :: positions(n_atoms,3)
+    character(len=256), intent(in) :: xyzfile
+
+    if (md_int == "velocity_verlet" ) then
+        call simulation_vel_verlet(positions,xyzfile)
+    else
+        call simulation_verlet(positions,xyzfile)
+    end if
+
+end subroutine simulation
+
 subroutine simulation_verlet(positions,xyzfile)
     use definitions, only: wp, avogad
     use print_mod, only: recprt2, recprt3
@@ -185,7 +201,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
     use force_field_mod, only: get_energy_gradient, n_atoms, mweights
     use parser_mod, only: atomnames,md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_debug, md_fix_com_mom
     use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
-    use propagators, only: Verlet
+    use propagators, only: velocity_verlet_position, velocity_verlet_velocity
 
     implicit none
 
@@ -216,7 +232,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
     
     call init_v(velocities(:,:)) !v(t=-1)
     do icartesian = 1,3
-        acceleration(current,:,icartesian) = 1e-4 * forces(:,icartesian) / mweights(:)
+        acceleration_list(current,:,icartesian) = 1e-4 * forces(:,icartesian) / mweights(:)
         !acceleration in Å/fs^2                    in kJ/mol/Å           in g/mol;
     end do
 
@@ -231,7 +247,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         write(*,"(/A,/A,/A)") "In propagation","---------------------------------------","Initialization:"
         call recprt2("forces",atomnames,forces,n_atoms)
         write(*,"(A,*(/,F10.6))") "masses: [g/mol]", mweights
-       call recprt2("acceleration = forces / masses",atomnames,acceleration,n_atoms)
+       !call recprt2("acceleration = forces / masses",atomnames,acceleration,n_atoms)
         write(*,"(A)") "Start performing steps ..."
     end if
 
@@ -303,7 +319,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
             call recprt2("r(t) = positions_list(current,:,:) [Å]",atomnames,positions_list(current,:,:),n_atoms)
             !call recprt2("r(t+Δt) = positions_list(new,:,:) [Å]",atomnames,positions_list(new,:,:),n_atoms)
             call recprt2("F(t) = forces(:,:) [kJ/mol]",atomnames,forces(:,:),n_atoms)
-            call recprt2("a(t) = acceleration(:,:) [Å/(fs)^2]",atomnames,acceleration(:,:),n_atoms)
+            !call recprt2("a(t) = acceleration(:,:) [Å/(fs)^2]",atomnames,acceleration(:,:),n_atoms)
             call recprt2("v(t) = velocities(:,:) [Å/fs]",atomnames,velocities(:,:),n_atoms)
         end if
 

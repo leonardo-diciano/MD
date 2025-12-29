@@ -71,7 +71,8 @@ do i=1, md_nstepsnstep
         stop
     end if
     
-    CALL velocity_verlet(positions,velocities,acceleration)
+    CALL velocity_verlet_position(positions_current, velocities, acceleration, positions_new)
+    CALL velocity_verlet_velocity(old_acceleration, new_acceleration, velocities)
 
     ! Deposit a new gaussian bias potential every meta_tau fs
     if (MOD((md_ts * i),meta_tau) == 0) then
