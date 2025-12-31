@@ -24,6 +24,7 @@ subroutine simulation_verlet(positions,xyzfile)
     use force_field_mod, only: get_energy_gradient, n_atoms, mweights
     use parser_mod, only: atomnames,md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_debug, md_fix_com_mom
     use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
+    use ensemble_mod, only: bussi_thermostat, berendsen_barostat
     use propagators, only: Verlet
 
     implicit none
@@ -93,6 +94,12 @@ subroutine simulation_verlet(positions,xyzfile)
         !call recprt2("acceleration",atomnames,acceleration,n_atoms)
     end if
 
+    if (md_ensemble == "NVT") then
+        write(*,*) "Turning on the Bussi thermostat"
+    elseif (md_ensemble == "NPT") then
+        write(*,*) "Turning on the Bussi thermostat"
+        write(*,*) "Turning on the Berendsend barostat"
+    end if
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! PERFORM THE STEPS ITERATIVELY
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -124,10 +131,23 @@ subroutine simulation_verlet(positions,xyzfile)
                 end if
             end if
         end if
+        
 
         ! GET PROPERTIES
         call get_temperature(velocities, instant_temp, E_kin) ! use v(t)
         call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure) ! use x(t) and v(t)
+
+        ! Apply thermostat/barostat constraints
+        if (md_ensemble == "NVT") then
+           CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
+           call get_temperature(velocities, instant_temp, E_kin) 
+           call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
+        elseif (md_ensemble == "NPT") then
+           CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
+           CALL berendsen_barostat(positions_list(current,:,:),pressure)
+           call get_temperature(velocities, instant_temp, E_kin) 
+           call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
+        end if
 
         ! WRITE QUANTITIES FILE
         open(97, file=properties_outfile, status='old', action='write')
@@ -136,9 +156,7 @@ subroutine simulation_verlet(positions,xyzfile)
                                             tot_momentum_norm/avogad
         if (debug_print_all_matrices) then
             write(*,"(/A,I5)") "New quantities at step ",istep
-            !call recprt2("r(t-Δt) = positions_list(previous,:,:) [Å]",atomnames,positions_list(previous,:,:),n_atoms)
             call recprt2("r(t) = positions_list(current,:,:) [Å]",atomnames,positions_list(current,:,:),n_atoms)
-            !call recprt2("r(t+Δt) = positions_list(new,:,:) [Å]",atomnames,positions_list(new,:,:),n_atoms)
             call recprt2("F(t) = forces(:,:) [kJ/mol]",atomnames,forces(:,:),n_atoms)
             call recprt2("a(t) = acceleration(:,:) [Å/(fs)^2]",atomnames,acceleration(:,:),n_atoms)
             call recprt2("v(t) = velocities(:,:) [Å/fs]",atomnames,velocities(:,:),n_atoms)
@@ -260,6 +278,12 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1:3)
     end do
 
+    if (md_ensemble == "NVT") then
+        write(*,*) "Turning on the Bussi thermostat"
+    elseif (md_ensemble == "NPT") then
+        write(*,*) "Turning on the Bussi thermostat"
+        write(*,*) "Turning on the Berendsend barostat"
+    end if
 
     if (md_debug) then
         write(*,"(/A,I5)") "Initial quantities at step ",istep
@@ -308,6 +332,18 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         call get_temperature(velocities, instant_temp, E_kin) ! use v(t)
         call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure) ! use x(t) and v(t)
 
+        ! Apply thermostat/barostat constraints
+        if (md_ensemble == "NVT") then
+           CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
+           call get_temperature(velocities, instant_temp, E_kin) 
+           call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
+        elseif (md_ensemble == "NPT") then
+           CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
+           CALL berendsen_barostat(positions_list(current,:,:),pressure)
+           call get_temperature(velocities, instant_temp, E_kin) 
+           call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
+        end if
+
         ! WRITE QUANTITIES FILE
         open(97, file=properties_outfile, status='old', action='write')
         ! this prints info from the previous step
@@ -315,11 +351,9 @@ subroutine simulation_vel_verlet(positions,xyzfile)
                                             tot_momentum_norm/avogad
         if (debug_print_all_matrices) then
             write(*,"(/A,I5)") "New quantities at step ",istep
-            !call recprt2("r(t-Δt) = positions_list(previous,:,:) [Å]",atomnames,positions_list(previous,:,:),n_atoms)
             call recprt2("r(t) = positions_list(current,:,:) [Å]",atomnames,positions_list(current,:,:),n_atoms)
-            !call recprt2("r(t+Δt) = positions_list(new,:,:) [Å]",atomnames,positions_list(new,:,:),n_atoms)
             call recprt2("F(t) = forces(:,:) [kJ/mol]",atomnames,forces(:,:),n_atoms)
-            !call recprt2("a(t) = acceleration(:,:) [Å/(fs)^2]",atomnames,acceleration(:,:),n_atoms)
+            call recprt2("a(t) = acceleration(:,:) [Å/(fs)^2]",atomnames,acceleration_list(new,:,:),n_atoms)
             call recprt2("v(t) = velocities(:,:) [Å/fs]",atomnames,velocities(:,:),n_atoms)
         end if
 

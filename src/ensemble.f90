@@ -7,17 +7,18 @@ module ensemble_mod
 
 contains
 
-subroutine bussi_thermostat(new_K,ndeg,alpha)
+subroutine bussi_thermostat(new_K,ndeg,velocities)
 use definitions, only: wp,boltzmann
 use lin_alg, only: gauss_distrib, sumnoises
 use parser_mod, only: md_temp, bus_tau, md_ts
+use force_field_mod, only: n_atoms
 
 implicit none
     
 real(kind=wp), intent(in) :: new_K
 integer, intent(in) :: ndeg
-real(kind=wp), intent(out) :: alpha
-real(kind=wp) :: rr, factor, targ_K
+real(kind=wp), intent(inout) :: velocities(n_atoms,3)
+real(kind=wp) :: rr, factor, targ_K,  alpha
 
 ! Calculation of the target kinetic energy by equipartion theorem 
 targ_K = (ndeg / 2) * boltzmann * md_temp
@@ -35,6 +36,8 @@ rr = gauss_distrib()
 ! sumnoises function calculates the sum of ndeg-1 independent gaussian numbers squared
 alpha = SQRT( factor + (targ_K/(ndeg*new_K)) * (1-factor) * (rr**2 + sumnoises(ndeg-1)) +&
          2 * SQRT(factor) * SQRT((targ_K / (ndeg *new_K)) * (1-factor)*rr) )
+
+velocities(:,:) = alpha * velocities(:,:) 
 end subroutine
 
 
