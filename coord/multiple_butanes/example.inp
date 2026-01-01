@@ -1,0 +1,13 @@
+topology methane_bunch.top
+coords methane_bunch.xyz 
+
+#comments
+[minimize] 
+steep_desc
+
+[run_md]
+ts 0.3  # in fs
+nsteps 5000
+temp 50 # K
+ensemble NVT # or NVE or NPT 
+integrator velocity_verlet

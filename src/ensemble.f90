@@ -10,7 +10,7 @@ contains
 subroutine bussi_thermostat(new_K,ndeg,velocities)
 use definitions, only: wp,boltzmann
 use lin_alg, only: gauss_distrib, sumnoises
-use parser_mod, only: md_temp, bus_tau, md_ts
+use parser_mod, only: md_temp, bus_tau, md_ts, md_debug
 use force_field_mod, only: n_atoms
 
 implicit none
@@ -35,11 +35,16 @@ rr = gauss_distrib()
 ! Calculation of alpha (rescaling factor)
 ! sumnoises function calculates the sum of ndeg-1 independent gaussian numbers squared
 alpha = SQRT( factor + (targ_K/(ndeg*new_K)) * (1-factor) * (rr**2 + sumnoises(ndeg-1)) +&
-         2 * SQRT(factor) * SQRT((targ_K / (ndeg *new_K)) * (1-factor)*rr) )
+         2 *rr * SQRT(factor) * SQRT((targ_K / (ndeg *new_K)) * (1-factor)) )
 
+! Rescale velocities
 velocities(:,:) = alpha * velocities(:,:) 
-end subroutine
 
+if (md_debug) then
+    write(*,*) "Alpha = ", alpha, " ndeg =", ndeg, " T_EKin = ", targ_K, " Ekin = ", new_K
+end if
+
+end subroutine
 
 
 subroutine berendsen_barostat(positions,new_P)

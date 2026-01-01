@@ -219,6 +219,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
     use force_field_mod, only: get_energy_gradient, n_atoms, mweights
     use parser_mod, only: atomnames,md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_debug, md_fix_com_mom
     use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
+    use ensemble_mod, only: berendsen_barostat, bussi_thermostat
     use propagators, only: velocity_verlet_position, velocity_verlet_velocity
 
     implicit none

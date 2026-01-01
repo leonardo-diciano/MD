@@ -20,7 +20,7 @@ public :: md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_boxlength, md_debug,
 integer :: md_nsteps=1000
 real(kind=wp) :: md_ts=1.0 ,md_boxlength = 20, md_temp=300.0, md_press=100000.0! in Pa
 character(len=32) :: md_ensemble="NVE", md_int="verlet"
-logical :: md_debug = .false., md_fix_com_mom = .false.
+logical :: md_debug = .true., md_fix_com_mom = .false.
 
 ! Bussi thermostat params
 public :: bus_tau

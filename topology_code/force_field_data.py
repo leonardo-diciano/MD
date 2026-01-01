@@ -19,6 +19,7 @@ mass_dict = {
 
 # bond key - force constant in kcal/mol/Å^2 - equilibrium bond distance in Å
 bond_params ={'ow-hw': [np.float64(553.0), np.float64(0.9572)],
+'ow-ho': [np.float64(553.0), np.float64(0.9572)],
 'br-br': [np.float64(123.2), np.float64(2.542)],
 'br-c1': [np.float64(352.7), np.float64(1.787)],
 'br-c2': [np.float64(278.7), np.float64(1.883)],

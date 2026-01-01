@@ -17,7 +17,7 @@ real(kind=wp), allocatable :: positions(:,:), forces(:,:)
 real(kind=wp) :: start_time, end_time, tot_pot, gradnorm
 character(len=1) :: short
 logical :: t_present = .false. , c_present = .false., m_present = .false., m1_present =.false.,&
-         p_present = .false., i_present = .false., suppress_flag = .true., debug_flag
+         p_present = .false., i_present = .false., suppress_flag = .true., debug_flag = .false.
 
 ! Parse the command line arguments with f90getopt library
 

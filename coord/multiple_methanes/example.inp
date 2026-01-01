@@ -1,13 +1,13 @@
-topology 9methanes.top
-coords 9methanes.xyz 
+topology methane_bunch.top
+coords methane_bunch.xyz 
 
 #comments
 [minimize] 
-conj_grad 
+steep_desc
 
 [run_md]
-ts 1.0  # in fs
-nsteps 10000
-temp 300 # K
-ensemble NVE # or NVE or NPT 
+ts 0.3  # in fs
+nsteps 5000
+temp 50 # K
+ensemble NVT # or NVE or NPT 
 integrator velocity_verlet

@@ -97,9 +97,23 @@ for smarts, atom_type in smarts_to_type.items():
             if symb[0] == atom_type.capitalize()[0]: #Check that is the correct element 
                 if list_atom_types_to_print[atom_idx] is None:
                     list_atom_types_to_print[atom_idx] = [atom_idx + 1,symb, atom_type, float(mass_dict[symb])]
-                    atom_assigned_types[atom_idx]=atom_type                  
+                    atom_assigned_types[atom_idx]=atom_type
 
-
+for i in range(len(list_atom_types_to_print)):     
+    if list_atom_types_to_print[i] == None:              
+        if mol.GetAtomWithIdx(i).GetSymbol() == "H":
+            symbols=[]
+            for j in mol.GetAtomWithIdx(i).GetNeighbors():
+                symbols.append(j.GetSymbol())
+            if "O" in symbols:
+                list_atom_types_to_print[i] = "ho"
+                atom_assigned_types[i] = "ho"   
+            elif "N" in symbols:
+                list_atom_types_to_print[i] = "hn"
+                atom_assigned_types[i] = "hn"
+            else:
+                list_atom_types_to_print[i] = "hc"
+                atom_assigned_types[i] = "hc"   
 
 print(f"Atom Types assigned\n")
 print_df=pd.DataFrame(list_atom_types_to_print,columns=["Index","Element","Type","Mass (amu)"])
@@ -381,7 +395,6 @@ elif args.mulliken:
         print(print_df.to_csv(sep="\t",index=False,))
     else:
         print(f"Mulliken charges assigned: {len(list_charges_to_print)}")
-    
 
 
 """The parameters are assembled with all the stored components and
