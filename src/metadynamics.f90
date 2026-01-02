@@ -18,7 +18,7 @@ implicit none
 real(kind=wp),intent(inout) :: positions(n_atoms,3)
 character(len=256), intent(in) :: xyzfile
 integer :: meta_counter = 1
-real(kind=wp) :: bias_param(meta_nsteps,2), tot_bias_pot, cv_value
+real(kind=wp) :: bias_param(meta_nsteps,2), tot_bias_pot, cv_value,step_bias_pot
 
 real(kind=wp) :: displacement(n_atoms), positions_previous(n_atoms,3), input_positions(n_atoms,3), forces(n_atoms,3), &
                 total_displacement(n_atoms), velocities(n_atoms,3)
@@ -41,15 +41,16 @@ positions_list(current,:,:) = positions(:,:) !x(t=0)
 acceleration_list(:,:,:) = 0
 bias_param(:,:) = 0.0
 tot_bias_pot = 0.0
+step_bias_pot = 0.0
 tot_pot = 0.0
 forces(:,:) = 0.0
 
 if (meta_cv_type == "distance") then
-    CALL distance_bias(positions,tot_pot,forces,init_cv_value)
+    CALL distance_bias(positions,tot_pot,forces,init_cv_value,step_bias_pot)
 elseif (meta_cv_type == "angle") then
-    CALL angle_bias(positions,tot_pot,forces,init_cv_value)
+    CALL angle_bias(positions,tot_pot,forces,init_cv_value,step_bias_pot)
 elseif (meta_cv_type == "dihedral") then
-    CALL dihedral_bias(positions,tot_pot,forces,init_cv_value)
+    CALL dihedral_bias(positions,tot_pot,forces,init_cv_value,step_bias_pot)
 else
     write(*,*) "Error in CV type"
     stop
@@ -67,8 +68,8 @@ end do
 dot = index(xyzfile, ".", back=.true.)     ! find last "." in xyzfile name
 properties_outfile = xyzfile(:dot-1) // ".properties.txt"
 open(97, file=properties_outfile, status='replace', action='write')
-write(97,"(A10,9(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "Bias", "Free_energy" , "Temp", "Pressure", "COM_momentum"
-write(97,"(A10,9(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)", "kJ/mol","kJ/mol","K", "Pa", "gÅ/fs"
+write(97,"(A10,9(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "CV_value", "Inst_Bias" , "Tot_Bias","Temp", "Pressure", "COM_momentum"
+write(97,"(A10,9(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)", " ","kJ/mol","kJ/mol","K", "Pa", "gÅ/fs"
 
 ! PREPARE TRAJECTORY FILE: traj_xyzfile
 traj_xyzfile = xyzfile(:dot-1) // "_meta.traj" // xyzfile(dot:)
@@ -96,11 +97,11 @@ end do
     end if
 
     if (meta_cv_type == "distance") then
-        CALL distance_bias(positions_list(),tot_pot,forces,cv_value)
+        CALL distance_bias(positions_list(),tot_pot,forces,cv_value,step_bias_pot)
     elseif (meta_cv_type == "angle") then
-        CALL angle_bias(positions_list(),tot_pot,forces,cv_value)
+        CALL angle_bias(positions_list(),tot_pot,forces,cv_value,step_bias_pot)
     elseif (meta_cv_type == "dihedral") then
-        CALL dihedral_bias(positions_list(),tot_pot,forces,cv_value)
+        CALL dihedral_bias(positions_list(),tot_pot,forces,cv_value,step_bias_pot)
     else
         write(*,*) "Error in CV type"
         stop
@@ -114,8 +115,73 @@ end do
     
     CALL velocity_verlet_velocity(old_acceleration, new_acceleration, velocities)
 
+    ! SCALE VELOCITIES TO ENSURE ZERO MOMENTUM OF THE CENTER OF MASS
+    call get_tot_momentum(velocities, tot_momentum)
+    tot_momentum_norm = 0
+    do icartesian = 1,3
+        tot_momentum_norm = tot_momentum_norm + tot_momentum(icartesian)**2
+    end do
+    tot_momentum_norm = SQRT(tot_momentum_norm)
 
+    if (md_fix_com_mom) then
+        do icartesian = 1,3
+            velocities(:,icartesian) = velocities(:,icartesian) - tot_momentum(icartesian) / SUM(mweights)
+        end do
 
+        if (md_debug) then
+            write(*,"(/A)") "After adapting the velocities with respect to the momentum and mass:"
+            call get_tot_momentum(velocities, tot_momentum) !THIS SHOULD NOW BE ZERO
+            if (debug_print_all_matrices) then
+                call recprt3("v(t_0) = velocities(:,:) [Å/fs]",velocities(:,:),n_atoms)
+            end if
+        end if
+    end if
+
+    ! GET PROPERTIES
+    call get_temperature(velocities, instant_temp, E_kin) ! use v(t)
+    call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure) ! use x(t) and v(t)
+
+    ! Apply thermostat/barostat constraints
+    if (md_ensemble == "NVT") then
+        CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
+        call get_temperature(velocities, instant_temp, E_kin) 
+        call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
+    elseif (md_ensemble == "NPT") then
+        CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
+        CALL berendsen_barostat(positions_list(current,:,:),pressure)
+        call get_temperature(velocities, instant_temp, E_kin) 
+        call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
+    end if
+
+    ! WRITE QUANTITIES FILE
+    open(97, file=properties_outfile, status='old', action='write')
+    ! this prints info from the previous step
+    write(97,"(I8,2x,7(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, cv_value, step_bias_pot, tot_bias_pot, instant_temp,& 
+                                pressure, tot_momentum_norm/avogad
+
+    if (debug_print_all_matrices) then
+        write(*,"(/A,I5)") "New quantities at step ",istep
+        call recprt2("r(t) = positions_list(current,:,:) [Å]",atomnames,positions_list(current,:,:),n_atoms)
+        call recprt2("F(t) = forces(:,:) [kJ/mol]",atomnames,forces(:,:),n_atoms)
+        call recprt2("a(t) = acceleration(:,:) [Å/(fs)^2]",atomnames,acceleration_list(new,:,:),n_atoms)
+        call recprt2("v(t) = velocities(:,:) [Å/fs]",atomnames,velocities(:,:),n_atoms)
+    end if
+
+    ! TRACK DISPLACEMENT OF THE ATOMS
+    call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),displacement,n_atoms,atomnames)
+    total_displacement(:) = total_displacement(:) + displacement(:)
+
+    ! WRITE TRAJECTORY FILE
+    open(98, file=traj_xyzfile, status='old', action='write')
+    write(98,*) n_atoms
+    write(98,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
+    do i=1, size(positions,1), 1
+        write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions_list(new,i,:)
+    end do
+
+    ! PREPARE NEXT STEP
+    positions_list(current,:,:) = positions_list(new,:,:)
+    acceleration_list(current,:,:) = acceleration_list(new,:,:)
 
 end do
 end subroutine
@@ -203,7 +269,7 @@ else
 end if
 end function
 
-subroutine distance_bias(bias_param,positions,tot_pot,forces,cv_value)
+subroutine distance_bias(bias_param,positions,tot_pot,forces,cv_value,bias_pot)
 use definitions, only: wp
 use force_field_mod, only: n_atoms
 use parser, only: meta_cv, meta_nsteps, meta_cv_type, meta_sigma
@@ -212,13 +278,14 @@ implicit none
 
 real(kind=wp), intent(in) :: bias_param(meta_nsteps,2), positions(n_atoms,3)
 real(kind=wp), intent(inout) :: tot_pot,forces(n_atoms,3),cv_value 
+real(kind=wp), intent(out) :: bias_pot = 0
 real(kind=wp) :: distance, der_1(3), der_2(3)
 
 distance = positions(meta_cv(2),:) - positions(meta_cv(1),:)
 cv_value = SQRT(dot_product(distance,distance))
 
 do i=1, meta_nsteps
-    tot_pot = tot_pot + bias_param(i,1) * ( exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2))
+    bias_pot =bias_pot + bias_param(i,1) * ( exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2))
 
     der_1= - bias_param(i,1) * ((cv_value - bias_param(i,2))/meta_sigma) * &
             exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2) * &
@@ -231,10 +298,10 @@ do i=1, meta_nsteps
     force(meta_cv(1),:) = force(meta_cv(1),:) + der_1
     force(meta_cv(2),:) = force(meta_cv(2),:) + der_2
 end do
-
+tot_pot = tot_pot + bias_pot
 end subroutine
 
-subroutine angle_bias(bias_param,positions,tot_pot,forces,cv_value)
+subroutine angle_bias(bias_param,positions,tot_pot,forces,cv_value,bias_pot)
 use definitions, only: wp
 use force_field_mod, only: n_atoms
 use parser, only: meta_cv, meta_nsteps, meta_cv_type, meta_sigma
@@ -243,6 +310,7 @@ implicit none
 
 real(kind=wp), intent(in) :: bias_param(meta_nsteps,2)
 real(kind=wp), intent(inout) :: positions(n_atoms,3),tot_pot,forces(n_atoms,3), cv_value 
+real(kind=wp), intent(out) :: bias_pot = 0
 real(kind=wp) :: d12(3), d23(3), d12_norm, d23_norm, der_magn, der_1(3), der_3(3)
 
 
@@ -255,7 +323,7 @@ d23_norm = SQRT(dot_product(d23,d23))
 cv_value = acos(dot_product(d12,d23) / (d12_norm * d23_norm))
 
 do i=1, meta_nsteps
-    tot_pot = tot_pot + bias_param(i,1) * ( exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2))
+    bias_pot = bias_pot + bias_param(i,1) * ( exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2))
 
     der_magn = bias_param(i,1) * ((cv_value - bias_param(i,2))/meta_sigma) * &
             exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2)
@@ -270,10 +338,10 @@ do i=1, meta_nsteps
     forces(meta_cv(2),1:3) = forces(meta_cv(2),1:3) - (der_1 + der_3)
     forces(meta_cv(3),1:3) = forces(meta_cv(3),1:3) + der_3
 end do
-
+tot_pot = tot_pot + bias_pot
 end subroutine
 
-subroutine dihedral_bias(bias_param,positions,tot_pot,forces,cv_value)
+subroutine dihedral_bias(bias_param,positions,tot_pot,forces,cv_value,bias_pot)
 use definitions, only: wp
 use force_field_mod, only: n_atoms
 use parser, only: meta_cv, meta_nsteps, meta_cv_type, meta_sigma
@@ -282,6 +350,7 @@ implicit none
 
 real(kind=wp), intent(in) :: bias_param(meta_nsteps,2)
 real(kind=wp), intent(inout) :: positions(n_atoms,3),tot_pot,forces(n_atoms,3), cv_value
+real(kind=wp), intent(out) :: bias_pot = 0
 real(kind=wp) :: d12(3), d23(3), d34(3), a(3), b(3), a_norm, b_norm, der_magn, &
                 ratio, cap_A, cap_B, der_1(3), der_2(3), der_3(3), der_4(3)
 
@@ -319,7 +388,7 @@ cap_A = (b / (a_norm * b_norm)) - ((cos(cv_value) * a) / (a_norm**2))
 cap_B = (a / (a_norm * b_norm)) - ((cos(cv_value) * b) / (b_norm**2 ))
 
 do i=1, meta_nsteps
-    tot_pot = tot_pot + bias_param(i,1) * ( exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2))
+    bias_pot = bias_pot + bias_param(i,1) * ( exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2))
 
     der_magn = bias_param(i,1) * ((cv_value - bias_param(i,2))/meta_sigma) * &
             exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2) 
@@ -335,15 +404,7 @@ do i=1, meta_nsteps
     forces(meta_cv(4),1:3) = forces(meta_cv(4),1:3) + der_4
 end do
 
+tot_pot = tot_pot + bias_pot
 end subroutine
-
-function calc_free_energy()
-
-implicit none
-
-! calculate probability histogram and reweight 
-
-
-end function
 
 end module
