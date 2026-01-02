@@ -10,7 +10,8 @@ contains
 subroutine run_metadynamics(positions,xyzfile)
 use definitions, only: wp
 use force_field_mod, only: n_atoms
-use parser_mod, only: meta_cv, meta_tau, meta_nsteps, meta_cv_type, md_nsteps, md_ts, md_ensemble, md_fix_com_mom
+use parser_mod, only: meta_cv, meta_tau, meta_nsteps, meta_cv_type, meta_dT, meta_omega, meta_sigma, &
+                     md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_temp, md_press
 implicit none
 
 real(kind=wp), intent(inout) :: positions(n_atoms,3)
@@ -24,6 +25,22 @@ end if
 if ((meta_nsteps * meta_tau) > (md_nsteps * md_ts)) then
     md_nsteps = meta_nsteps + 10
 end if
+
+write(*,*) "METADYNAMICS module"
+write(*,*) "Settings:"
+write(*,"(A22,I5)") "  MD number of steps: ", md_nsteps
+write(*,"(A15,F10.3,A3)") "  MD timestep: ", md_ts, " fs"
+write(*,"(A15,A3)") "  MD ensemble: ", md_ensemble
+write(*,"(A18,F10.3,A2)") "  MD temperature: ", md_temp, " K"
+write(*,"(A15,F10.3,A3)") "  MD pressure: ", md_press, " Pa"
+write(*,"(A19,A8,2X,4(I4,2X))") "  Metadynamics CV: ", meta_cv_type, meta_cv(:)
+write(*,"(A32,I10)") "  Metadynamics number of steps: ", meta_nsteps
+write(*,"(A31,F10.3,A3)") "  Metadynamics timestep (tau): ", meta_tau, " fs"
+write(*,"(A48,F10.3,A7)") "  Metadynamics initial deposition rate (omega): ", meta_omega, " kJ/mol"
+write(*,"(A36,F10.3,A2)") "  Metadynamics bias parameter (dT): ", meta_dT, " K"
+write(*,"(A39,F10.3)") "  Metadynamics Gaussian width (sigma): ", meta_sigma
+write(*,*) " "
+write(*,*) "Starting the metadynamics run"
 
 CALL metadynamics_propagation(positions,xyzfile)
 
@@ -52,7 +69,7 @@ real(kind=wp) :: positions_list(2,n_atoms,3), acceleration_list(2,n_atoms,3)
 real(kind=wp) :: gradnorm, tot_pot, instant_temp, pressure, E_kin, tot_momentum(3), tot_momentum_norm
 character(len=256) :: traj_xyzfile, properties_outfile
 integer :: istep, icartesian,i, dot, current, previous, new
-logical :: suppress_flag = .true., debug_print_all_matrices = .true.
+logical :: suppress_flag = .true., debug_print_all_matrices = .false.
 
 ! for intuitive storing of position data 
 current = 1
@@ -92,8 +109,8 @@ end do
 dot = index(xyzfile, ".", back=.true.)     ! find last "." in xyzfile name
 properties_outfile = xyzfile(:dot-1) // ".properties.txt"
 open(97, file=properties_outfile, status='replace', action='write')
-write(97,"(A10,10(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm","Temp", "Pressure", "COM_momentum", "CV_value", "Inst_Bias" , "Tot_Bias"
-write(97,"(A10,10(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)","K", "Pa", "gÅ/fs", " ","kJ/mol","kJ/mol"
+write(97,"(A10,10(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure", "COM_momentum", "CV_value", "Inst_Bias" , "Tot_Bias"
+write(97,"(A10,10(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)", "K", "Pa", "gÅ/fs", " ","kJ/mol","kJ/mol"
 
 ! PREPARE TRAJECTORY FILE: traj_xyzfile
 traj_xyzfile = xyzfile(:dot-1) // "_meta.traj" // xyzfile(dot:)
@@ -103,6 +120,11 @@ write(98,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
 do i=1, size(positions,1), 1
     write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1:3)
 end do
+
+write(*,"(A10,7(A20))") "istep", "E_tot", "E_kin","E_pot","Temp", "Pressure", "CV_value", "Tot_Bias"
+write(*,"(A10,7(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "K", "Pa", "none","kJ/mol"
+write(*,'(A)') repeat('-', 150)
+
 
  do while (istep<md_nsteps)
         istep = istep +1
@@ -115,7 +137,7 @@ end do
     CALL get_energy_gradient(positions_list(current,:,:),tot_pot,forces, gradnorm, suppress_flag)
 
     ! Deposit a new gaussian bias potential every meta_tau fs
-    if (MOD((md_ts * i),meta_tau) == 0) then
+    if (MOD((md_ts * istep),meta_tau) == 0) then
         cv_value = calc_cv(positions_list(current,:,:))
         CALL deposit_bias_potential(meta_counter,cv_value,init_cv_value,bias_param,tot_bias_pot)
     end if
@@ -191,6 +213,11 @@ end do
         call recprt2("v(t) = velocities(:,:) [Å/fs]",atomnames,velocities(:,:),n_atoms)
     end if
 
+    if (mod(istep,100) == 1) then
+        write(*,"(I8,2x,7(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure,& 
+                                 cv_value, tot_bias_pot
+    end if
+
     ! TRACK DISPLACEMENT OF THE ATOMS
     call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),displacement,n_atoms,atomnames)
     total_displacement(:) = total_displacement(:) + displacement(:)
@@ -208,6 +235,11 @@ end do
     acceleration_list(current,:,:) = acceleration_list(new,:,:)
 
 end do
+write(*,*) "last step"
+write(*,"(I8,2x,7(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure,& 
+                                 cv_value, tot_bias_pot
+write(*,*) " "
+write(*,*) "Metadynamics succesfully completed"
 end subroutine
 
 subroutine deposit_bias_potential(meta_counter,cv_value,init_cv_value,bias_param,tot_bias_pot)
