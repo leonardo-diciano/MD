@@ -31,6 +31,13 @@ public :: ber_tau, ber_k
 real(kind=wp) :: ber_tau = 5000 !fs, following GROMACS default  
 real(kind=wp) :: ber_k = 4.6e-10 ! Pa^{-1} for water at ~ 300K and 1 atm
 
+! Metadynamics
+public :: meta_cv, meta_tau, meta_nsteps, meta_cv_type, meta_dT, meta_omega, meta_sigma
+integer(kind=wp), allocatable :: meta_cv(:)
+real(kind=wp) :: meta_tau = 10.0 ,meta_dT = 2700, meta_omega = 1, meta_sigma = 0.2
+integer(kind=wp) ::  meta_nsteps = 100
+character(len=32) :: meta_cv_type
+
 contains
 
 subroutine parser_top(xyzfile,topofile,positions,atomtypes,debug_flag)
@@ -263,14 +270,14 @@ end subroutine
 
 
 subroutine parser_input(inputfile,xyzfile, topofile, t_present, c_present, m_present, m1_present,&
-         p_present)
+         p_present, meta_present)
 
 
 character(len=256), intent(in) :: inputfile
 character(len=256), intent(out) :: xyzfile, topofile
-logical, intent(inout) :: t_present, c_present, m_present, m1_present,p_present
+logical, intent(inout) :: t_present, c_present, m_present, m1_present,p_present, meta_present
 integer :: io
-logical :: mini_block = .false., md_block = .false.
+logical :: mini_block = .false., md_block = .false., meta_block = .false.
 character(len=256) :: line
 character(len=32) :: dummy_symb
 
@@ -310,7 +317,14 @@ do
         cycle
     end if
 
-  
+    if (index(trim(line),"[run_meta]") == 1) then
+        mini_block = .false.
+        md_block = .false.
+        meta_block = .true.
+        p_present = .false.
+        meta_present = .true.
+        cycle
+    end if
 
 
     if (mini_block) then
@@ -346,6 +360,36 @@ do
             read(line,*) dummy_symb, ber_k
         elseif (index(trim(line),"bussi_tau") == 1) then
             read(line,*) dummy_symb, bus_tau
+        end if
+    end if
+
+    if (meta_block) then
+        if (index(trim(line),"cv") == 1) then
+            read(line,*) dummy_symb, meta_cv_type
+            if (meta_cv_type == "distance") then
+                allocate(meta_cv(2))
+                read(line,*) dummy_symb, meta_cv_type, meta_cv(1), meta_cv(2)
+            elseif (meta_cv_type == "angle") then
+                allocate(meta_cv(3))
+                read(line,*) dummy_symb, meta_cv_type, meta_cv(1), meta_cv(2), meta_cv(3)
+            elseif (meta_cv_type == "dihedral") then
+                allocate(meta_cv(4))
+                read(line,*) dummy_symb, meta_cv_type, meta_cv(1), meta_cv(2), meta_cv(3), meta_cv(4)
+            else
+                write(*,*) "Unrecognized CV type for metadynamics: ", meta_cv_type
+                write(*,*) "The allowed ones are: distance, angle, dihedral"
+                stop
+            end if 
+        elseif (index(trim(line),"nsteps") == 1) then
+            read(line,*) dummy_symb, meta_nsteps
+        elseif (index(trim(line),"tau") == 1) then
+            read(line,*) dummy_symb, meta_tau
+        elseif (index(trim(line),"dT") == 1) then
+            read(line,*) dummy_symb, meta_dT
+        elseif (index(trim(line),"omega") == 1) then
+            read(line,*) dummy_symb, meta_omega
+        elseif (index(trim(line),"sigma") == 1) then
+            read(line,*) dummy_symb, meta_sigma
         end if
     end if
 

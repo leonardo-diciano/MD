@@ -9,6 +9,7 @@ use force_field_mod, only: n_atoms,n_bonds,n_angles,n_torsions,n_impdie, bond_pa
 use minimization_mod, only: minimization
 use pbc_mod, only: define_box
 use simulation_mod, only: simulation
+use metadynamics_mod, only: run_metadynamics
 
 implicit none
 character(len=256) :: xyzfile, topofile, inputfile
@@ -17,7 +18,7 @@ real(kind=wp), allocatable :: positions(:,:), forces(:,:)
 real(kind=wp) :: start_time, end_time, tot_pot, gradnorm
 character(len=1) :: short
 logical :: t_present = .false. , c_present = .false., m_present = .false., m1_present =.false.,&
-         p_present = .false., i_present = .false., suppress_flag = .true., debug_flag = .false.
+         p_present = .false., i_present = .false., suppress_flag = .true., debug_flag = .false., meta_present = .false.
 
 ! Parse the command line arguments with f90getopt library
 
@@ -92,7 +93,7 @@ end do
 
 if (i_present) then
     CALL parser_input(inputfile,xyzfile, topofile, t_present, c_present, m_present, m1_present,&
-        p_present)
+        p_present, meta_present)
 else
     if (t_present .and. c_present) then ! both mandatory options are present
         write(*,FMT = '( "The topology file is: ", A50 )') topofile
@@ -123,8 +124,10 @@ else if (m1_present) then
     CALL minimization(positions,tot_pot,forces,xyzfile,1) !steepest descent
 end if
 
-if (p_present) then
-    call simulation(positions,xyzfile)
+if (meta_present) then
+    call run_metadynamics(positions,xyzfile) ! run metadynamics
+elseif (p_present) then
+    call simulation(positions,xyzfile)      ! run MD
 end if
 
 

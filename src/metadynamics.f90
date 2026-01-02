@@ -7,27 +7,52 @@ implicit none
 
 contains
 
+subroutine run_metadynamics(positions,xyzfile)
+use definitions, only: wp
+use force_field_mod, only: n_atoms
+use parser_mod, only: meta_cv, meta_tau, meta_nsteps, meta_cv_type, md_nsteps, md_ts, md_ensemble, md_fix_com_mom
+implicit none
+
+real(kind=wp), intent(inout) :: positions(n_atoms,3)
+character(len=256), intent(in) :: xyzfile
+
+! Some security checks and adjustments before actually running the metadynamics
+if (meta_tau < md_ts) then
+    md_ts = meta_tau 
+end if 
+
+if ((meta_nsteps * meta_tau) > (md_nsteps * md_ts)) then
+    md_nsteps = meta_nsteps + 10
+end if
+
+CALL metadynamics_propagation(positions,xyzfile)
+
+end subroutine
+
 subroutine metadynamics_propagation(positions,xyzfile)
 ! Velocity Verlet Propagation scheme with integrated well-tempered metadynamics
-use definitions, only: wp
-use simulation_subroutines, only: init_v
-use force_field_mod, only: get_energy_gradient, mweights
-use parser, only: meta_cv, meta_tau, meta_nsteps, meta_cv_type
+use definitions, only: wp, avogad
+use print_mod, only: recprt2, recprt3
+use lin_alg, only: displacement_vec
+use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
+use ensemble_mod, only: berendsen_barostat, bussi_thermostat
+use force_field_mod, only: get_energy_gradient, mweights, n_atoms
+use parser_mod, only: atomnames, meta_cv, meta_tau, meta_nsteps, meta_cv_type, &
+                md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_debug, md_temp, md_press
+use propagators, only: velocity_verlet_position, velocity_verlet_velocity
 
 implicit none
 real(kind=wp),intent(inout) :: positions(n_atoms,3)
 character(len=256), intent(in) :: xyzfile
 integer :: meta_counter = 1
-real(kind=wp) :: bias_param(meta_nsteps,2), tot_bias_pot, cv_value,step_bias_pot
-
+real(kind=wp) :: bias_param(meta_nsteps,2), tot_bias_pot, cv_value,step_bias_pot, init_cv_value
 real(kind=wp) :: displacement(n_atoms), positions_previous(n_atoms,3), input_positions(n_atoms,3), forces(n_atoms,3), &
                 total_displacement(n_atoms), velocities(n_atoms,3)
 real(kind=wp) :: positions_list(2,n_atoms,3), acceleration_list(2,n_atoms,3)
 real(kind=wp) :: gradnorm, tot_pot, instant_temp, pressure, E_kin, tot_momentum(3), tot_momentum_norm
 character(len=256) :: traj_xyzfile, properties_outfile
 integer :: istep, icartesian,i, dot, current, previous, new
-logical :: suppress_flag = .true.
-
+logical :: suppress_flag = .true., debug_print_all_matrices = .true.
 
 ! for intuitive storing of position data 
 current = 1
@@ -41,16 +66,15 @@ positions_list(current,:,:) = positions(:,:) !x(t=0)
 acceleration_list(:,:,:) = 0
 bias_param(:,:) = 0.0
 tot_bias_pot = 0.0
-step_bias_pot = 0.0
 tot_pot = 0.0
 forces(:,:) = 0.0
 
 if (meta_cv_type == "distance") then
-    CALL distance_bias(positions,tot_pot,forces,init_cv_value,step_bias_pot)
+    CALL distance_bias(bias_param,positions_list(current,:,:),tot_pot,forces,init_cv_value,step_bias_pot)
 elseif (meta_cv_type == "angle") then
-    CALL angle_bias(positions,tot_pot,forces,init_cv_value,step_bias_pot)
+    CALL angle_bias(bias_param,positions_list(current,:,:),tot_pot,forces,init_cv_value,step_bias_pot)
 elseif (meta_cv_type == "dihedral") then
-    CALL dihedral_bias(positions,tot_pot,forces,init_cv_value,step_bias_pot)
+    CALL dihedral_bias(bias_param,positions_list(current,:,:),tot_pot,forces,init_cv_value,step_bias_pot)
 else
     write(*,*) "Error in CV type"
     stop
@@ -68,8 +92,8 @@ end do
 dot = index(xyzfile, ".", back=.true.)     ! find last "." in xyzfile name
 properties_outfile = xyzfile(:dot-1) // ".properties.txt"
 open(97, file=properties_outfile, status='replace', action='write')
-write(97,"(A10,9(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "CV_value", "Inst_Bias" , "Tot_Bias","Temp", "Pressure", "COM_momentum"
-write(97,"(A10,9(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)", " ","kJ/mol","kJ/mol","K", "Pa", "gÅ/fs"
+write(97,"(A10,10(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm","Temp", "Pressure", "COM_momentum", "CV_value", "Inst_Bias" , "Tot_Bias"
+write(97,"(A10,10(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)","K", "Pa", "gÅ/fs", " ","kJ/mol","kJ/mol"
 
 ! PREPARE TRAJECTORY FILE: traj_xyzfile
 traj_xyzfile = xyzfile(:dot-1) // "_meta.traj" // xyzfile(dot:)
@@ -88,20 +112,20 @@ end do
                             positions_list(new,:,:))
 
     
-    CALL get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag)
+    CALL get_energy_gradient(positions_list(current,:,:),tot_pot,forces, gradnorm, suppress_flag)
 
     ! Deposit a new gaussian bias potential every meta_tau fs
     if (MOD((md_ts * i),meta_tau) == 0) then
-        CALL calc_cv(positions_list(current,:,:))
+        cv_value = calc_cv(positions_list(current,:,:))
         CALL deposit_bias_potential(meta_counter,cv_value,init_cv_value,bias_param,tot_bias_pot)
     end if
 
     if (meta_cv_type == "distance") then
-        CALL distance_bias(positions_list(),tot_pot,forces,cv_value,step_bias_pot)
+        CALL distance_bias(bias_param,positions_list(current,:,:),tot_pot,forces,cv_value,step_bias_pot)
     elseif (meta_cv_type == "angle") then
-        CALL angle_bias(positions_list(),tot_pot,forces,cv_value,step_bias_pot)
+        CALL angle_bias(bias_param,positions_list(current,:,:),tot_pot,forces,cv_value,step_bias_pot)
     elseif (meta_cv_type == "dihedral") then
-        CALL dihedral_bias(positions_list(),tot_pot,forces,cv_value,step_bias_pot)
+        CALL dihedral_bias(bias_param,positions_list(current,:,:),tot_pot,forces,cv_value,step_bias_pot)
     else
         write(*,*) "Error in CV type"
         stop
@@ -113,7 +137,7 @@ end do
         !acceleration in Å/fs^2                    in kJ/mol/Å           in g/mol;
     end do
     
-    CALL velocity_verlet_velocity(old_acceleration, new_acceleration, velocities)
+    CALL velocity_verlet_velocity(acceleration_list(current,:,:), acceleration_list(new,:,:), velocities(:,:))
 
     ! SCALE VELOCITIES TO ENSURE ZERO MOMENTUM OF THE CENTER OF MASS
     call get_tot_momentum(velocities, tot_momentum)
@@ -156,8 +180,8 @@ end do
     ! WRITE QUANTITIES FILE
     open(97, file=properties_outfile, status='old', action='write')
     ! this prints info from the previous step
-    write(97,"(I8,2x,7(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, cv_value, step_bias_pot, tot_bias_pot, instant_temp,& 
-                                pressure, tot_momentum_norm/avogad
+    write(97,"(I8,2x,10(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure,& 
+                                tot_momentum_norm/avogad, cv_value, step_bias_pot, tot_bias_pot
 
     if (debug_print_all_matrices) then
         write(*,"(/A,I5)") "New quantities at step ",istep
@@ -189,13 +213,13 @@ end subroutine
 subroutine deposit_bias_potential(meta_counter,cv_value,init_cv_value,bias_param,tot_bias_pot)
 use definitions, only: wp
 use force_field_mod, only: n_atoms
-use parser, only: meta_cv, meta_dT, meta_omega, meta_sigma, meta_nsteps 
+use parser_mod, only: meta_cv, meta_dT, meta_omega, meta_sigma, meta_nsteps, meta_tau 
 
 implicit none 
 
 real(kind=wp), intent(inout) :: tot_bias_pot, bias_param(meta_nsteps,2),init_cv_value 
 integer, intent(inout) :: meta_counter
-real(kind=wp), intent(in) :: cv_value, positions(n_atoms,3)
+real(kind=wp), intent(in) :: cv_value
 real(kind=wp) :: gaussian_potential, height
 
 ! calculate the height based on the previous bias potentials and the constants
@@ -222,13 +246,13 @@ end subroutine
 
 function calc_cv(positions) result(cv_value)
 use definitions, only: wp
-use force_field_mod, only: n_atoms
-use parser, only: meta_cv, meta_cv_type
+use force_field_mod, only: n_atoms, cross_product
+use parser_mod, only: meta_cv, meta_cv_type
 
 implicit none
 real(kind=wp), intent(in) :: positions(n_atoms,3)
-real(kind=wp), intent(out) :: cv_value
-real(kind=wp) :: distance, d12(3), d23(3), d12_norm, d23_norm, d34(3), a(3), b(3), a_norm, b_norm, ratio
+real(kind=wp) :: cv_value
+real(kind=wp) :: distance(3), d12(3), d23(3), d12_norm, d23_norm, d34(3), a(3), b(3), a_norm, b_norm, ratio
 
 if (meta_cv_type == "distance") then
     distance = positions(meta_cv(2),:) - positions(meta_cv(1),:)
@@ -272,14 +296,16 @@ end function
 subroutine distance_bias(bias_param,positions,tot_pot,forces,cv_value,bias_pot)
 use definitions, only: wp
 use force_field_mod, only: n_atoms
-use parser, only: meta_cv, meta_nsteps, meta_cv_type, meta_sigma
+use parser_mod, only: meta_cv, meta_nsteps, meta_cv_type, meta_sigma
 
 implicit none
 
 real(kind=wp), intent(in) :: bias_param(meta_nsteps,2), positions(n_atoms,3)
 real(kind=wp), intent(inout) :: tot_pot,forces(n_atoms,3),cv_value 
-real(kind=wp), intent(out) :: bias_pot = 0
-real(kind=wp) :: distance, der_1(3), der_2(3)
+real(kind=wp), intent(out) :: bias_pot
+real(kind=wp) :: distance(3), der_1(3), der_2(3)
+integer :: i
+bias_pot = 0
 
 distance = positions(meta_cv(2),:) - positions(meta_cv(1),:)
 cv_value = SQRT(dot_product(distance,distance))
@@ -295,25 +321,26 @@ do i=1, meta_nsteps
             exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2) * &
             (positions(meta_cv(2),:) - positions(meta_cv(1),:)) / cv_value
 
-    force(meta_cv(1),:) = force(meta_cv(1),:) + der_1
-    force(meta_cv(2),:) = force(meta_cv(2),:) + der_2
+    forces(meta_cv(1),:) = forces(meta_cv(1),:) + der_1
+    forces(meta_cv(2),:) = forces(meta_cv(2),:) + der_2
 end do
 tot_pot = tot_pot + bias_pot
 end subroutine
 
 subroutine angle_bias(bias_param,positions,tot_pot,forces,cv_value,bias_pot)
-use definitions, only: wp
+use definitions, only: wp, safeguard
 use force_field_mod, only: n_atoms
-use parser, only: meta_cv, meta_nsteps, meta_cv_type, meta_sigma
+use parser_mod, only: meta_cv, meta_nsteps, meta_cv_type, meta_sigma
 
 implicit none
 
 real(kind=wp), intent(in) :: bias_param(meta_nsteps,2)
 real(kind=wp), intent(inout) :: positions(n_atoms,3),tot_pot,forces(n_atoms,3), cv_value 
-real(kind=wp), intent(out) :: bias_pot = 0
+real(kind=wp), intent(out) :: bias_pot
+integer :: i
 real(kind=wp) :: d12(3), d23(3), d12_norm, d23_norm, der_magn, der_1(3), der_3(3)
 
-
+bias_pot = 0
 d12 = positions(meta_cv(1),1:3) - positions(meta_cv(2),1:3)
 d23 = positions(meta_cv(3),1:3) - positions(meta_cv(2),1:3)
 d12_norm = SQRT(dot_product(d12,d12))
@@ -342,17 +369,19 @@ tot_pot = tot_pot + bias_pot
 end subroutine
 
 subroutine dihedral_bias(bias_param,positions,tot_pot,forces,cv_value,bias_pot)
-use definitions, only: wp
-use force_field_mod, only: n_atoms
-use parser, only: meta_cv, meta_nsteps, meta_cv_type, meta_sigma
+use definitions, only: wp, safeguard
+use force_field_mod, only: n_atoms, cross_product
+use parser_mod, only: meta_cv, meta_nsteps, meta_cv_type, meta_sigma
 
 implicit none
 
 real(kind=wp), intent(in) :: bias_param(meta_nsteps,2)
 real(kind=wp), intent(inout) :: positions(n_atoms,3),tot_pot,forces(n_atoms,3), cv_value
-real(kind=wp), intent(out) :: bias_pot = 0
+real(kind=wp), intent(out) :: bias_pot
+integer :: i
 real(kind=wp) :: d12(3), d23(3), d34(3), a(3), b(3), a_norm, b_norm, der_magn, &
-                ratio, cap_A, cap_B, der_1(3), der_2(3), der_3(3), der_4(3)
+                ratio, cap_A(3), cap_B(3), der_1(3), der_2(3), der_3(3), der_4(3)
+bias_pot = 0
 
 d12 = positions(meta_cv(2),1:3) - positions(meta_cv(1),1:3)
 d23 = positions(meta_cv(3),1:3) - positions(meta_cv(2),1:3)
