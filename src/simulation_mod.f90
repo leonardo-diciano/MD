@@ -22,13 +22,13 @@ subroutine simulation(positions,xyzfile)
     write(*,"(A15,F10.3,A3)") "  MD pressure: ", md_press, " Pa"
     if (md_ensemble == "NVT") then
         write(*,"(A20,A3)") "  Bussi thermostat: ", " ON"
-        write(*,"(A31,A3)") "    Bussi time constant (tau): ", bus_tau
+        write(*,"(A31,F10.3)") "    Bussi time constant (tau): ", bus_tau
     elseif (md_ensemble == "NPT") then
         write(*,"(A20,A3)") "  Bussi thermostat: ", " ON"
         write(*,"(A31,F10.3)") "    Bussi time constant (tau): ", bus_tau
         write(*,"(A22,A3)") "  Berendsen barostat: ", " ON"
         write(*,"(A35,F10.3)") "    Berendsen time constant (tau): ", ber_tau
-        write(*,"(A28,F10.3)") "    Berendsen constant (k): ", ber_k
+        write(*,"(A28,F20.15)") "    Berendsen constant (k): ", ber_k
     end if
     if (md_fix_com_mom) then
         write(*,"(A23,2X,A4)") "  MD fix COM momentum: ", "True"
@@ -179,7 +179,6 @@ subroutine simulation_verlet(positions,xyzfile)
         end if
 
         ! WRITE QUANTITIES FILE
-        open(97, file=properties_outfile, status='old', action='write')
         ! this prints info from the previous step
         write(97,"(I8,2x,7(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure, &
                                             tot_momentum_norm/avogad
@@ -196,7 +195,6 @@ subroutine simulation_verlet(positions,xyzfile)
         total_displacement(:) = total_displacement(:) + displacement(:)
 
         ! WRITE TRAJECTORY FILE
-        open(98, file=traj_xyzfile, status='old', action='write')
         write(98,*) n_atoms
         write(98,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
         do i=1, size(positions,1), 1
@@ -220,6 +218,11 @@ subroutine simulation_verlet(positions,xyzfile)
 
     end do
 
+    write(*,*) "last step"
+    write(*,"(I8,2x,5(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
+    write(*,*) " "
+    write(*,*) "Molecular Dynamics succesfully completed"
+
     displacement(:) = 0
 
     if (md_debug) then
@@ -236,6 +239,7 @@ subroutine simulation_verlet(positions,xyzfile)
         end do
     end if
 
+    
     write(*,"(/A,//A)") "================================================================","Simulation finished"
     write(*,"(/A,F10.2,A)") "Total simulation time", md_ts * istep, " fs"
     write(*,"(/A,A)") "Wrote properties to ", properties_outfile
@@ -377,7 +381,6 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         end if
 
         ! WRITE QUANTITIES FILE
-        open(97, file=properties_outfile, status='old', action='write')
         ! this prints info from the previous step
         write(97,"(I8,2x,7(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure, &
                                             tot_momentum_norm/avogad
@@ -394,7 +397,6 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         total_displacement(:) = total_displacement(:) + displacement(:)
 
         ! WRITE TRAJECTORY FILE
-        open(98, file=traj_xyzfile, status='old', action='write')
         write(98,*) n_atoms
         write(98,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
         do i=1, size(positions,1), 1
@@ -410,6 +412,11 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         acceleration_list(current,:,:) = acceleration_list(new,:,:)
 
     end do
+
+    write(*,*) "last step"
+    write(*,"(I8,2x,5(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
+    write(*,*) " "
+    write(*,*) "Molecular Dynamics succesfully completed"
 
     displacement(:) = 0
 

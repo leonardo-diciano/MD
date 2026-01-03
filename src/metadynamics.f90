@@ -39,13 +39,13 @@ write(*,"(A18,F10.3,A2)") "  MD temperature: ", md_temp, " K"
 write(*,"(A15,F10.3,A3)") "  MD pressure: ", md_press, " Pa"
 if (md_ensemble == "NVT") then
     write(*,"(A20,A3)") "  Bussi thermostat: ", " ON"
-    write(*,"(A31,A3)") "    Bussi time constant (tau): ", bus_tau
+    write(*,"(A31,F10.3)") "    Bussi time constant (tau): ", bus_tau
 elseif (md_ensemble == "NPT") then
     write(*,"(A20,A3)") "  Bussi thermostat: ", " ON"
     write(*,"(A31,F10.3)") "    Bussi time constant (tau): ", bus_tau
     write(*,"(A22,A3)") "  Berendsen barostat: ", " ON"
     write(*,"(A35,F10.3)") "    Berendsen time constant (tau): ", ber_tau
-    write(*,"(A28,F10.3)") "    Berendsen constant (k): ", ber_k
+    write(*,"(A28,F20.15)") "    Berendsen constant (k): ", ber_k
 end if
 if (md_fix_com_mom) then
     write(*,"(A23,2X,A4)") "  MD fix COM momentum: ", "True"
@@ -127,17 +127,17 @@ end do
 ! PREPARE FILE THAT TRACKS PROPERTIES
 dot = index(xyzfile, ".", back=.true.)     ! find last "." in xyzfile name
 properties_outfile = xyzfile(:dot-1) // ".properties.txt"
-open(97, file=properties_outfile, status='replace', action='write')
-write(97,"(A10,10(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure", "COM_momentum", "CV_value", "Inst_Bias" , "Tot_Bias"
-write(97,"(A10,10(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)", "K", "Pa", "gÅ/fs", " ","kJ/mol","kJ/mol"
+open(34, file=properties_outfile, status='replace', action='write')
+write(34,"(A10,10(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure", "COM_momentum", "CV_value", "Inst_Bias" , "Tot_Bias"
+write(34,"(A10,10(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)", "K", "Pa", "gÅ/fs", " ","kJ/mol","kJ/mol"
 
 ! PREPARE TRAJECTORY FILE: traj_xyzfile
 traj_xyzfile = xyzfile(:dot-1) // "_meta.traj" // xyzfile(dot:)
-open(98, file=traj_xyzfile, status='replace', action='write')
-write(98,*) n_atoms
-write(98,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
+open(35, file=traj_xyzfile, status='replace', action='write')
+write(35,*) n_atoms
+write(35,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
 do i=1, size(positions,1), 1
-    write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1:3)
+    write(35,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1:3)
 end do
 
 write(*,"(A10,7(A20))") "istep", "E_tot", "E_kin","E_pot","Temp", "Pressure", "CV_value", "Tot_Bias"
@@ -219,9 +219,8 @@ write(*,'(A)') repeat('-', 150)
     end if
 
     ! WRITE QUANTITIES FILE
-    open(97, file=properties_outfile, status='old', action='write')
     ! this prints info from the previous step
-    write(97,"(I8,2x,10(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure,& 
+    write(34,"(I8,2x,10(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure,& 
                                 tot_momentum_norm/avogad, cv_value, step_bias_pot, tot_bias_pot
 
     if (debug_print_all_matrices) then
@@ -242,11 +241,10 @@ write(*,'(A)') repeat('-', 150)
     total_displacement(:) = total_displacement(:) + displacement(:)
 
     ! WRITE TRAJECTORY FILE
-    open(98, file=traj_xyzfile, status='old', action='write')
-    write(98,*) n_atoms
-    write(98,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
+    write(35,*) n_atoms
+    write(35,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
     do i=1, size(positions,1), 1
-        write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions_list(new,i,:)
+        write(35,FMT='(A3,3(2X,F15.8))') atomnames(i), positions_list(new,i,:)
     end do
 
     ! PREPARE NEXT STEP

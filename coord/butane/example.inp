@@ -8,14 +8,14 @@ conj_grad
 max_iter 1000
 
 [run_md]
-ts 0.5  # in fs
-nsteps 1000
+ts 0.1  # in fs
+nsteps 10000
 temp 100 # K
 ensemble NVT # or NVE or NPT 
 integrator velocity_verlet
 
-#[run_meta]
-#cv dihedral 1 2 3 4
-#tau 0.1
-#nsteps 1000
-#dT 900
+[run_meta]
+cv dihedral 1 2 6 9
+tau 0.5
+nsteps 1000
+dT 900

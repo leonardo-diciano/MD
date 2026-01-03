@@ -25,11 +25,11 @@ logical :: md_debug = .false., debug_print_all_matrices = .false., md_fix_com_mo
 
 ! Bussi thermostat params
 public :: bus_tau
-real(kind=wp) :: bus_tau = 100 ! fs
+real(kind=wp) :: bus_tau = 50.0 ! fs
 
 ! Berendsen barostat params
 public :: ber_tau, ber_k
-real(kind=wp) :: ber_tau = 5000 !fs, following GROMACS default  
+real(kind=wp) :: ber_tau = 5000.0 !fs, following GROMACS default  
 real(kind=wp) :: ber_k = 4.6e-10 ! Pa^{-1} for water at ~ 300K and 1 atm
 
 ! Metadynamics
