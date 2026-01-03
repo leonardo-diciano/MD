@@ -39,11 +39,12 @@ parser.add_argument('-o','--output',type=str,metavar='filename',help=f"Give the 
 group2 = parser.add_mutually_exclusive_group(required=False)
 group2.add_argument('-m','--mulliken',action='store_true',help=f"Select Mulliken Charges calculation to obtain partial charges")
 group2.add_argument('-r','--resp',action='store_true',help=f"Select RESP charges calculation to obtain partial charges")
+group2.add_argument('-a','--assign',type=str,metavar=None,help=f"Give a list of atom types and corresponding charge to assign")
 parser.add_argument('-c','--constraints',type=str,metavar=None,help=f"Give a list of constrained groups of atoms for RESP charges calculation, i.e. '[[1,2,][3,4,5,6,7,8]]' for ethane")
 parser.add_argument('-d','--debug',action='store_true',help=f"Activate debug level of printing")
 args=parser.parse_args()
 
-if not args.mulliken and not args.resp:
+if not args.mulliken and not args.assign:
     args.resp = True
 if args.constraints and not args.resp:
     parser.error("-c/--constraints can only be used together with -r/--resp")
@@ -55,6 +56,15 @@ elif args.constraints and args.resp:
         constraints = None
 else:
     constraints = None
+
+if args.assign:
+    try:
+        assignments = ast.literal_eval(args.assign)
+        print(assignments)
+    except:
+        assignments = None
+else:
+    assignments = None
      
 #Avoid pandas FutureWarnings
 warnings.filterwarnings('ignore',category=FutureWarning)
@@ -395,7 +405,18 @@ elif args.mulliken:
         print(print_df.to_csv(sep="\t",index=False,))
     else:
         print(f"Mulliken charges assigned: {len(list_charges_to_print)}")
+elif args.assign and assignments:
+    """Charge assignment from input"""
+    for i in range(len(list_atom_types_to_print)):
+        list_charges_to_print.append((i+1,assignments[i%len(assignments)]))
+    
+    if args.debug:
+        print(f"Charges assigned\n")
 
+        print_df=pd.DataFrame(list_charges_to_print,columns=["Index","Charge"])
+        print(print_df.to_csv(sep="\t",index=False,))
+    else:
+        print(f"Charges assigned: {len(list_charges_to_print)}")
 
 """The parameters are assembled with all the stored components and
 written in a *.top file"""
