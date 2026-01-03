@@ -12,16 +12,16 @@ logical :: debug_flag = .false.
 
 ! minimization params
 public :: min_max_iter, min_etol, min_ftol, min_alpha, min_debug
-integer :: min_max_iter=10000
-real(kind=wp) :: min_etol=1.0e-6, min_ftol=1.0e-4, min_alpha = 1e-3
+integer :: min_max_iter=1000
+real(kind=wp) :: min_etol=1.0e-6, min_ftol=1.0e-4, min_alpha = 1e-4
 logical :: min_debug = .false.
 
 ! MD params
 public :: md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_boxlength, md_debug, md_int, md_pbc
-integer :: md_nsteps=10
+integer :: md_nsteps=1000
 real(kind=wp) :: md_ts=1.0 ,md_boxlength = 10, md_temp=300.0, md_press=100000.0! in Pa
 character(len=32) :: md_ensemble="NVE", md_int="verlet"
-logical :: md_debug = .false., debug_print_all_matrices = .false., md_fix_com_mom = .false., md_pbc = .true.
+logical :: md_debug = .false., debug_print_all_matrices = .false., md_fix_com_mom = .false., md_pbc = .false.
 
 ! Bussi thermostat params
 public :: bus_tau
@@ -29,7 +29,7 @@ real(kind=wp) :: bus_tau = 50.0 ! fs
 
 ! Berendsen barostat params
 public :: ber_tau, ber_k
-real(kind=wp) :: ber_tau = 5000.0 !fs, following GROMACS default  
+real(kind=wp) :: ber_tau = 5000.0 !fs, following GROMACS default
 real(kind=wp) :: ber_k = 4.6e-10 ! Pa^{-1} for water at ~ 300K and 1 atm
 
 ! Metadynamics
@@ -400,7 +400,7 @@ do
                 write(*,*) "Unrecognized CV type for metadynamics: ", meta_cv_type
                 write(*,*) "The allowed ones are: distance, angle, dihedral"
                 stop
-            end if 
+            end if
         elseif (index(trim(line),"nsteps") == 1) then
             read(line,*) dummy_symb, meta_nsteps
         elseif (index(trim(line),"tau") == 1) then

@@ -20,19 +20,19 @@ subroutine pbc_ctrl_positions(positions)
     do iatom = 1, n_atoms
         do icartesian = 1, 3
             if (positions(iatom,icartesian) >= 0.5*md_boxlength) then
-                write(*,*) "atom outside of box in direction ", icartesian, positions(iatom,icartesian)
+                !write(*,*) "atom outside of box in direction ", icartesian, positions(iatom,icartesian)
                 positions(iatom,icartesian) = positions(iatom,icartesian) - md_boxlength
-                write(*,*) "corrected to: ",positions(iatom,icartesian)
+                !write(*,*) "corrected to: ",positions(iatom,icartesian)
             else if (positions(iatom,icartesian) <= -0.5*md_boxlength) then
-                write(*,*) "atom outside of box in direction ", icartesian, positions(iatom,icartesian)
+                !write(*,*) "atom outside of box in direction ", icartesian, positions(iatom,icartesian)
                 positions(iatom,icartesian) = positions(iatom,icartesian) + md_boxlength
-                write(*,*) "corrected to: ",positions(iatom,icartesian)
+                !write(*,*) "corrected to: ",positions(iatom,icartesian)
             end if
         end do
     end do
-    
+
 end subroutine pbc_ctrl_positions
-   
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine define_box()

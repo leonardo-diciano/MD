@@ -27,7 +27,7 @@ module propagators
         real(kind=wp), intent(out) :: positions_new(n_atoms,3)
 
         ! UPDATE POSITIONS
-        positions_new(:,:) = positions_current(:,:)+ md_ts * velocities(:,:) + md_ts**2 * acceleration(:,:) 
+        positions_new(:,:) = positions_current(:,:)+ md_ts * velocities(:,:) + md_ts**2 * acceleration(:,:)
 
     end subroutine
 

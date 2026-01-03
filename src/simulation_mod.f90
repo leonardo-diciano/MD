@@ -5,7 +5,7 @@ subroutine simulation(positions,xyzfile)
     use definitions, only: wp
     use force_field_mod, only: n_atoms
     use parser_mod, only: md_int, md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_temp, md_press,&
-                        bus_tau, ber_k, ber_tau 
+                        bus_tau, ber_k, ber_tau, md_pbc
     implicit none
     real(kind=wp),intent(inout) :: positions(n_atoms,3)
     character(len=256), intent(in) :: xyzfile
@@ -34,6 +34,9 @@ subroutine simulation(positions,xyzfile)
         write(*,"(A40,2X,A4)") "  MD fix COM momentum: ", "True"
     else
         write(*,"(A40,2X,A5)") "  MD fix COM momentum: ", "False"
+    end if
+    if (md_pbc) then
+        write(*,"(A40)") "Periodic Boundary Conditions: ", md_pbc
     end if
     write(*,*) " "
     write(*,*) "Starting the molecular dynamics run"
@@ -83,7 +86,6 @@ subroutine simulation_verlet(positions,xyzfile)
         call pbc_ctrl_positions(positions(:,:))
     end if
 
-
     ! INITIALIZATION
     istep = 0
     total_displacement(:) = 0
@@ -122,7 +124,6 @@ subroutine simulation_verlet(positions,xyzfile)
         write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1:3)
     end do
 
-
     if (md_debug) then
         write(*,"(/A,I5)") "Initial quantities at step ",istep
         call recprt2("r(t-Δt)",atomnames,positions_list(previous,:,:),n_atoms)
@@ -143,7 +144,7 @@ subroutine simulation_verlet(positions,xyzfile)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     do while (istep<md_nsteps)
         istep = istep +1
-        
+
         ! UPDATE POSITIONS
         call Verlet(positions_list(previous,:,:),positions_list(current,:,:),acceleration(:,:), &
                             positions_list(new,:,:), velocities(:,:)) ! get x(t+1) and v(t)
@@ -169,7 +170,7 @@ subroutine simulation_verlet(positions,xyzfile)
                 end if
             end if
         end if
-        
+
 
         ! GET PROPERTIES
         call get_temperature(velocities, instant_temp, E_kin) ! use v(t)
@@ -178,18 +179,18 @@ subroutine simulation_verlet(positions,xyzfile)
         ! Apply thermostat/barostat constraints
         if (md_ensemble == "NVT") then
            CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
-           call get_temperature(velocities, instant_temp, E_kin) 
+           call get_temperature(velocities, instant_temp, E_kin)
            call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
         elseif (md_ensemble == "NPT") then
            CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
            CALL berendsen_barostat(positions_list(current,:,:),pressure)
-           call get_temperature(velocities, instant_temp, E_kin) 
+           call get_temperature(velocities, instant_temp, E_kin)
            call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
         end if
 
         ! WRITE QUANTITIES FILE
         ! this prints info from the previous step
-        write(97,"(I8,2x,7(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure, &
+        write(97,"(I8,2x,7(F18.8,2X))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure, &
                                             tot_momentum_norm/avogad
         if (debug_print_all_matrices) then
             write(*,"(/A,I5)") "New quantities at step ",istep
@@ -211,9 +212,9 @@ subroutine simulation_verlet(positions,xyzfile)
         end do
 
         if (mod(istep,100) == 1) then
-        write(*,"(I8,2x,5(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
+        write(*,"(I8,2x,5(F18.8,2x))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
         end if
-    
+
         ! PREPARE NEXT STEP
         positions_list(previous,:,:) = positions_list(current,:,:)
         positions_list(current,:,:) = positions_list(new,:,:)
@@ -233,7 +234,7 @@ subroutine simulation_verlet(positions,xyzfile)
     end do
 
     write(*,*) "last step"
-    write(*,"(I8,2x,5(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
+    write(*,"(I8,2x,5(F18.8,2X))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
     write(*,*) " "
     write(*,*) "Molecular Dynamics successfully completed"
 
@@ -253,7 +254,7 @@ subroutine simulation_verlet(positions,xyzfile)
         end do
     end if
 
-    
+
     write(*,"(/A,//A)") "================================================================","Simulation finished"
     write(*,"(/A,F10.2,A)") "Total simulation time", md_ts * istep, " fs"
     write(*,"(/A,A)") "Wrote properties to ", properties_outfile
@@ -300,7 +301,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
     acceleration_list(:,:,:) = 0
 
     call get_energy_gradient(positions_list(current,:,:),tot_pot,forces, gradnorm, suppress_flag) !F(t=0), E_pot(t=0)
-    
+
     call init_v(velocities(:,:)) !v(t=-1)
     do icartesian = 1,3
         acceleration_list(current,:,icartesian) = 1e-4 * forces(:,icartesian) / mweights(:)
@@ -347,7 +348,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         call velocity_verlet_position(positions_list(current,:,:), velocities(:,:),acceleration_list(current,:,:), &
                             positions_list(new,:,:))
 
-        ! CALCULATE NEW FORCES / ACCELERATION AT NEW POSITION and update velocities 
+        ! CALCULATE NEW FORCES / ACCELERATION AT NEW POSITION and update velocities
         call get_energy_gradient(positions_list(new,:,:),tot_pot,forces, gradnorm, suppress_flag)
         do icartesian = 1,3
             acceleration_list(new,:,icartesian) = 1e-4 * forces(:,icartesian) / mweights(:)
@@ -385,12 +386,12 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         ! Apply thermostat/barostat constraints
         if (md_ensemble == "NVT") then
            CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
-           call get_temperature(velocities, instant_temp, E_kin) 
+           call get_temperature(velocities, instant_temp, E_kin)
            call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
         elseif (md_ensemble == "NPT") then
            CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
            CALL berendsen_barostat(positions_list(current,:,:),pressure)
-           call get_temperature(velocities, instant_temp, E_kin) 
+           call get_temperature(velocities, instant_temp, E_kin)
            call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
         end if
 
@@ -401,7 +402,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         if (debug_print_all_matrices) then
             write(*,"(/A,I5)") "New quantities at step ",istep
             call recprt2("r(t) = positions_list(current,:,:) [Å]",atomnames,positions_list(current,:,:),n_atoms)
-            call recprt2("F(t) = forces(:,:) [kJ/mol]",atomnames,forces(:,:),n_atoms)
+            call recprt2("F(t) = forces(:,:) [kJ/(Åmol)]",atomnames,forces(:,:),n_atoms)
             call recprt2("a(t) = acceleration(:,:) [Å/(fs)^2]",atomnames,acceleration_list(new,:,:),n_atoms)
             call recprt2("v(t) = velocities(:,:) [Å/fs]",atomnames,velocities(:,:),n_atoms)
         end if
@@ -418,7 +419,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         end do
 
         if (mod(istep,100) == 1) then
-        write(*,"(I8,2x,5(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
+            write(*,"(I8,2x,5(F22.8,2x))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
         end if
 
         ! PREPARE NEXT STEP
