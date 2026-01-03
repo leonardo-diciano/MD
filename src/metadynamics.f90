@@ -66,13 +66,15 @@ do i=1, md_nstepsnstep
         write(*,*) "Error in CV type"
         stop
     end if
-    !update pos
-    !update velocities
+    
+    CALL velocity_verlet(positions,velocities,acceleration)
 
     ! Deposit a new gaussian bias potential every meta_tau fs
     if (MOD((md_ts * i),meta_tau) == 0) then
         CALL deposit_bias_potential(meta_counter,cv_value,bias_param,tot_bias_pot)
     end if
+
+
 
 end do
 end subroutine
@@ -86,7 +88,7 @@ use parser, only: meta_cv, meta_tau, meta_nsteps, meta_cv_type
 implicit none
 
 real(kind=wp), intent(inout) :: positions(n_atoms,3),tot_pot,forces(n_atoms,3)
-
+real(kind=wp), intent()
 
 
 end subroutine

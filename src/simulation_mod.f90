@@ -148,7 +148,7 @@ subroutine simulation(positions,xyzfile)
         end if
 
         ! TRACK DISPLACEMENT OF THE ATOMS
-        call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),displacement)
+        call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),displacement,n_atoms,atomnames)
         total_displacement(:) = total_displacement(:) + displacement(:)
 
         ! WRITE TRAJECTORY FILE
@@ -176,7 +176,7 @@ subroutine simulation(positions,xyzfile)
 
     if (md_debug) then
         write(*,"(/A)") "Throughout the simulation, the atoms displaced: (no MSD, but initial vs final coords)"
-        call displacement_vec(positions_list(current,:,:),input_positions, displacement)
+        call displacement_vec(positions_list(current,:,:),input_positions, displacement,n_atoms,atomnames)
         write(*,*) "Displacements (summed all steps)"
         do i = 1, n_atoms
             write(*,"(I3,1x,A3,1x,  F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"

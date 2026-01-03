@@ -1,11 +1,12 @@
 module lin_alg
 contains
 
-subroutine mat_norm(mat,norm)
+subroutine mat_norm(mat,norm,n_atoms)
     ! subroutine to get the norm of a vector that is stored as (n,3) matrix
     use definitions, only: wp
-    use force_field_mod, only: n_atoms
+    !use force_field_mod, only: n_atoms
     implicit none
+    integer, intent(in) :: n_atoms
     real(kind=wp),intent(in) :: mat(n_atoms,3)
     real(kind=wp),intent(out) :: norm
 
@@ -22,14 +23,15 @@ subroutine mat_norm(mat,norm)
 
 end subroutine mat_norm
 
-subroutine F_tot_norm(forces,norm)
+subroutine F_tot_norm(forces,norm,n_atoms)
     ! subroutine that first sums up all atomic force vectors to
     ! a whole force vector and then calculates the norm of the latter
     use definitions, only: wp
     use print_mod, only: recprt
-    use force_field_mod, only: n_atoms
+    !use force_field_mod, only: n_atoms
 
     implicit none
+    integer, intent(in) :: n_atoms
     real(kind=wp),intent(in) :: forces(n_atoms,3)
     real(kind=wp),intent(out) :: norm
 
@@ -54,15 +56,16 @@ subroutine F_tot_norm(forces,norm)
 end subroutine F_tot_norm
 
 
-subroutine displacement_vec(pos1,pos2, displacement)
+subroutine displacement_vec(pos1,pos2, displacement,n_atoms,atomnames)
 use definitions, only: wp
-use force_field_mod, only: n_atoms
-use parser_mod, only: atomnames
+!use force_field_mod, only: n_atoms
+!use parser_mod, only: atomnames
 
 implicit none
 real(kind=wp),intent(in) :: pos1(n_atoms,3), pos2(n_atoms,3)
 real(kind=wp), intent(out) ::  displacement(n_atoms)
-
+integer, intent(in) :: n_atoms
+character(len=2), intent(in), allocatable :: atomnames(:)
 integer :: icartesian
 real(kind=wp) :: diff(n_atoms,3)
 
