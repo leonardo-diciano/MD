@@ -53,10 +53,11 @@ subroutine simulation_verlet(positions,xyzfile)
     use lin_alg, only: displacement_vec
     use force_field_mod, only: get_energy_gradient, n_atoms, mweights
     use parser_mod, only: atomnames,md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_debug, md_fix_com_mom,&
-                        debug_print_all_matrices
+                        debug_print_all_matrices, md_pbc
     use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
     use ensemble_mod, only: bussi_thermostat, berendsen_barostat
     use propagators, only: Verlet
+    use pbc_mod, only: pbc_ctrl_positions
 
     implicit none
 
@@ -76,6 +77,12 @@ subroutine simulation_verlet(positions,xyzfile)
     previous = 1
     current = 2
     new = 3
+
+    ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+    if (md_pbc) then
+        call pbc_ctrl_positions(positions(:,:))
+    end if
+
 
     ! INITIALIZATION
     istep = 0
@@ -136,7 +143,7 @@ subroutine simulation_verlet(positions,xyzfile)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     do while (istep<md_nsteps)
         istep = istep +1
-
+        
         ! UPDATE POSITIONS
         call Verlet(positions_list(previous,:,:),positions_list(current,:,:),acceleration(:,:), &
                             positions_list(new,:,:), velocities(:,:)) ! get x(t+1) and v(t)
@@ -193,7 +200,7 @@ subroutine simulation_verlet(positions,xyzfile)
         end if
 
         ! TRACK DISPLACEMENT OF THE ATOMS
-        call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),displacement,n_atoms,atomnames)
+        call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),displacement,n_atoms)
         total_displacement(:) = total_displacement(:) + displacement(:)
 
         ! WRITE TRAJECTORY FILE
@@ -210,6 +217,11 @@ subroutine simulation_verlet(positions,xyzfile)
         ! PREPARE NEXT STEP
         positions_list(previous,:,:) = positions_list(current,:,:)
         positions_list(current,:,:) = positions_list(new,:,:)
+
+        ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+        if (md_pbc) then
+            call pbc_ctrl_positions(positions_list(new,:,:))
+        end if
 
         ! CALCULATE NEW FORCES / ACCELERATION AT NEW POSITION
         call get_energy_gradient(positions_list(new,:,:),tot_pot,forces, gradnorm, suppress_flag)
@@ -229,7 +241,7 @@ subroutine simulation_verlet(positions,xyzfile)
 
     if (md_debug) then
         write(*,"(/A)") "Throughout the simulation, the atoms displaced: (no MSD, but initial vs final coords)"
-        call displacement_vec(positions_list(current,:,:),input_positions, displacement,n_atoms,atomnames)
+        call displacement_vec(positions_list(current,:,:),input_positions, displacement,n_atoms)
         write(*,*) "Displacements (summed all steps)"
         do i = 1, n_atoms
             write(*,"(I3,1x,A3,1x,  F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
@@ -395,7 +407,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         end if
 
         ! TRACK DISPLACEMENT OF THE ATOMS
-        call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),displacement,n_atoms,atomnames)
+        call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),displacement,n_atoms)
         total_displacement(:) = total_displacement(:) + displacement(:)
 
         ! WRITE TRAJECTORY FILE
@@ -424,7 +436,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
 
     if (md_debug) then
         write(*,"(/A)") "Throughout the simulation, the atoms displaced: (no MSD, but initial vs final coords)"
-        call displacement_vec(positions_list(current,:,:),input_positions, displacement,n_atoms,atomnames)
+        call displacement_vec(positions_list(current,:,:),input_positions, displacement,n_atoms)
         write(*,*) "Displacements (summed all steps)"
         do i = 1, n_atoms
             write(*,"(I3,1x,A3,1x,  F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"

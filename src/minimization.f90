@@ -228,8 +228,7 @@ contains
             call recprt2("Atomic coordinates AFTER minimization",atomnames(:),positions(:,:),n_atoms)
             call recprt2("Change in atomic coordinates THROUGH minimization",atomnames(:),&
                                                             positions(:,:)-input_positions(:,:),n_atoms)
-            call displacement_vec(input_positions,positions, displacement,n_atoms,atomnames)
-            write(*,*) "Displacements"
+            call displacement_vec(input_positions,positions, displacement,n_atoms)
             do i = 1, n_atoms
                 write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
             end do
