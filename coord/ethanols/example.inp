@@ -1,0 +1,22 @@
+topology ethanols.top
+coords coord.xyz 
+debug 0
+
+#comments
+[minimize] 
+conj_grad 
+max_iter 1000
+
+[run_md]
+ts 0.5  # in fs
+nsteps 5000
+temp 300 # K
+ensemble NPT # or NVE or NPT 
+integrator velocity_verlet
+berendsen_tau 2
+
+#[run_meta]
+#cv dihedral 1 2 3 4
+#tau 0.1
+#nsteps 1000
+#dT 900

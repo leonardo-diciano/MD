@@ -8,6 +8,7 @@ implicit none
 ! General
 public :: atomnames
 character(len=2), allocatable :: atomnames(:)
+logical :: debug_flag = .false.
 
 ! minimization params
 public :: min_max_iter, min_etol, min_ftol, min_alpha, min_debug
@@ -19,17 +20,24 @@ logical :: min_debug = .false.
 public :: md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_boxlength, md_debug, md_int
 integer :: md_nsteps=1000
 real(kind=wp) :: md_ts=1.0 ,md_boxlength = 20, md_temp=300.0, md_press=100000.0! in Pa
-character(len=32) :: md_ensemble="NVE", md_int="Verlet"
-logical :: md_debug = .false., md_fix_com_mom = .false.
+character(len=32) :: md_ensemble="NVE", md_int="verlet"
+logical :: md_debug = .false., debug_print_all_matrices = .false., md_fix_com_mom = .false.
 
 ! Bussi thermostat params
 public :: bus_tau
-real(kind=wp) :: bus_tau = 100 ! fs
+real(kind=wp) :: bus_tau = 50.0 ! fs
 
 ! Berendsen barostat params
 public :: ber_tau, ber_k
-real(kind=wp) :: ber_tau = 5000 !fs, following GROMACS default
+real(kind=wp) :: ber_tau = 5000.0 !fs, following GROMACS default  
 real(kind=wp) :: ber_k = 4.6e-10 ! Pa^{-1} for water at ~ 300K and 1 atm
+
+! Metadynamics
+public :: meta_cv, meta_tau, meta_nsteps, meta_cv_type, meta_dT, meta_omega, meta_sigma
+integer(kind=wp), allocatable :: meta_cv(:)
+real(kind=wp) :: meta_tau = 10.0 ,meta_dT = 2700, meta_omega = 1, meta_sigma = 0.2
+integer(kind=wp) ::  meta_nsteps = 100
+character(len=32) :: meta_cv_type
 
 contains
 
@@ -263,14 +271,14 @@ end subroutine
 
 
 subroutine parser_input(inputfile,xyzfile, topofile, t_present, c_present, m_present, m1_present,&
-         p_present)
+         p_present, meta_present)
 
 
 character(len=256), intent(in) :: inputfile
 character(len=256), intent(out) :: xyzfile, topofile
-logical, intent(inout) :: t_present, c_present, m_present, m1_present,p_present
-integer :: io
-logical :: mini_block = .false., md_block = .false.
+logical, intent(inout) :: t_present, c_present, m_present, m1_present,p_present, meta_present
+integer :: io, dummy_idx
+logical :: mini_block = .false., md_block = .false., meta_block = .false.
 character(len=256) :: line
 character(len=32) :: dummy_symb
 
@@ -298,6 +306,25 @@ do
         end if
     end if
 
+    if (index(trim(line), "debug") == 1) then
+        read(line, *) dummy_symb, dummy_idx
+        if (dummy_idx .le. 0 ) then
+            debug_flag = .false.
+            md_debug = .false.
+            min_debug = .false.
+            debug_print_all_matrices = .false.
+        elseif (dummy_idx == 1) then
+            debug_flag = .true.
+            md_debug = .true.
+            min_debug = .true.
+        elseif (dummy_idx > 1) then
+            debug_flag = .true.
+            md_debug = .true.
+            min_debug = .true.
+            debug_print_all_matrices = .true.
+        end if
+    end if
+
     if (index(trim(line),"[minimize]") == 1) then
         mini_block = .true.
         cycle
@@ -310,8 +337,14 @@ do
         cycle
     end if
 
-
-
+    if (index(trim(line),"[run_meta]") == 1) then
+        mini_block = .false.
+        md_block = .false.
+        meta_block = .true.
+        p_present = .false.
+        meta_present = .true.
+        cycle
+    end if
 
     if (mini_block) then
         if (index(trim(line),"conj_grad") == 1) then
@@ -340,12 +373,44 @@ do
             read(line,*) dummy_symb, md_ensemble
         elseif (index(trim(line),"press") == 1) then
             read(line,*) dummy_symb, md_press
+        elseif (index(trim(line),"debug") == 1) then
+            md_debug = .true.
         elseif (index(trim(line),"berendsen_tau") == 1) then
             read(line,*) dummy_symb, ber_tau
         elseif (index(trim(line),"berendsen_k") == 1) then
             read(line,*) dummy_symb, ber_k
         elseif (index(trim(line),"bussi_tau") == 1) then
             read(line,*) dummy_symb, bus_tau
+        end if
+    end if
+
+    if (meta_block) then
+        if (index(trim(line),"cv") == 1) then
+            read(line,*) dummy_symb, meta_cv_type
+            if (meta_cv_type == "distance") then
+                allocate(meta_cv(2))
+                read(line,*) dummy_symb, meta_cv_type, meta_cv(1), meta_cv(2)
+            elseif (meta_cv_type == "angle") then
+                allocate(meta_cv(3))
+                read(line,*) dummy_symb, meta_cv_type, meta_cv(1), meta_cv(2), meta_cv(3)
+            elseif (meta_cv_type == "dihedral") then
+                allocate(meta_cv(4))
+                read(line,*) dummy_symb, meta_cv_type, meta_cv(1), meta_cv(2), meta_cv(3), meta_cv(4)
+            else
+                write(*,*) "Unrecognized CV type for metadynamics: ", meta_cv_type
+                write(*,*) "The allowed ones are: distance, angle, dihedral"
+                stop
+            end if 
+        elseif (index(trim(line),"nsteps") == 1) then
+            read(line,*) dummy_symb, meta_nsteps
+        elseif (index(trim(line),"tau") == 1) then
+            read(line,*) dummy_symb, meta_tau
+        elseif (index(trim(line),"dT") == 1) then
+            read(line,*) dummy_symb, meta_dT
+        elseif (index(trim(line),"omega") == 1) then
+            read(line,*) dummy_symb, meta_omega
+        elseif (index(trim(line),"sigma") == 1) then
+            read(line,*) dummy_symb, meta_sigma
         end if
     end if
 

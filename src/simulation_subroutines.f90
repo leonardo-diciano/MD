@@ -36,18 +36,21 @@ subroutine init_v(velocities)
 
     ! THIS IS LIKELY NOT YET ZERO
     call get_tot_momentum(velocities,tot_momentum)
-    write(*,"(/A,3(F10.6),A)") "Initial momentum of center of mass (probably not zero) = ", tot_momentum, " g*Å/(mol*fs)"
-
+    
+    if (md_debug) then
+        write(*,"(/A,3(F10.6),A)") "Initial momentum of center of mass (probably not zero) = ", tot_momentum, " g*Å/(mol*fs)"
+    end if
+     
     ! NOW WE RECALCULATE THE VELOCITIES TO MAKE THE TOTAL MOMENTUM ZERO (Leach, p.365)
     do icartesian = 1,3
         velocities(:,icartesian) = velocities(:,icartesian) - tot_momentum(icartesian) / SUM(mweights)
     end do
 
-    call get_tot_momentum(velocities,mweights, n_atoms, tot_momentum) !THIS SHOULD NOW BE ZERO
-    write(*,"(/A,3(F10.6),A)") "momentum of center of mass (should be zero from here on) = ", tot_momentum, " g*Å/(mol*fs)"
-
+    call get_tot_momentum(velocities, tot_momentum) !THIS SHOULD NOW BE ZERO
+  
     if (md_debug) then
         write(*,"(/A)") "After adapting the velocities with respect to the momentum and mass:"
+        write(*,"(/A,3(F10.6),A)") "momentum of center of mass (should be zero from here on) = ", tot_momentum, " g*Å/(mol*fs)"
         call recprt3("v(t_0) = velocities(:,:) [Å/fs]",velocities(:,:),n_atoms)
     end if
     call get_v_atoms(v_atoms,velocities,md_debug)

@@ -228,15 +228,13 @@ contains
             call recprt2("Atomic coordinates AFTER minimization",atomnames(:),positions(:,:),n_atoms)
             call recprt2("Change in atomic coordinates THROUGH minimization",atomnames(:),&
                                                             positions(:,:)-input_positions(:,:),n_atoms)
+            call displacement_vec(input_positions,positions, displacement,n_atoms,atomnames)
+            write(*,*) "Displacements"
+            do i = 1, n_atoms
+                write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
+            end do
+            write(*,"(/A,F12.8,A)") "  sum = ", sum(displacement(:)), " Å"
         end if
-        call displacement_vec(input_positions,positions, displacement,n_atoms,atomnames)
-        write(*,*) "Displacements"
-        do i = 1, n_atoms
-            write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
-        end do
-        write(*,"(/A,F12.8,A)") "  sum = ", sum(displacement(:)), " Å"
-
-        write(*,*) "==================================================================="
 
         ! Writing the updated coordinates to an xyzfile
         dot = index(xyzfile, ".", back=.true.)     ! find last "." in xyzfile name
@@ -249,9 +247,10 @@ contains
         end do
 
 
-        write(*,*) "Wrote updated coordinates to ", minimized_xyzfile
-        write(*,*) "Wrote minimization trajectory to ", traj_xyzfile
+        write(*,"(A,A)") "Wrote updated coordinates to ", minimized_xyzfile
+        write(*,"(A,A)") "Wrote minimization trajectory to ", traj_xyzfile
 
+        write(*,"(A)") "==================================================================="
 
     end subroutine minimization
 
