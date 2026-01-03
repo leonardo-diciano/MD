@@ -1,33 +1,21 @@
 # script to generate a .top and a .xyz file as input for the MDProgram
-# AIM: with knowledge of the (cubic) box size, LJ particles of different species can be created to get an initial system in a box
-
+# AIM: with knowledge of the (cubic) box size, LJ particles of ONE species can be created to get an initial system in a box
+# Author: Lila Zapp (2026)
 import sys
 import random
+
 main_name = "LJ_particles"
 
 helpmode = False
 
-for flag in sys.argv:
-    if flag == "-h":
-        helpmode = True
-        print("usage: python3 lj_particles_in_box.py [-h] 'properties_file' [-] [-e_temp] [...] [-savefig]")
-        print("\nyou may use different flags to track different properties:")
-        print("     -e_tot          plot the total energy")
-        print("     -e_pot          plot the potential energy")
-
-
 #input paramters
-n_atoms = 100
+n_atoms = 1000
 atomtype_short = "Ar"
 atomtype_long = "Ar"
 weight = 40
-boxlength = 20
+boxlength = 40
 sigma = 2
 eps = 0.1
-
-#n_species
-
-#usage: get_topology.py [-h] (-s SMI | -p PDB) [-o filename] [-m | -r | -a ASSIGN] [-c CONSTRAINTS] [-d]
 
 
 topfile = str(main_name)+".top"

@@ -10,3 +10,6 @@ __pycache__
 *.mod
 benchmark
 md_program
+*.properties.txt
+*.minimized.xyz
+*.traj.xyz
