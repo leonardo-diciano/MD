@@ -8,6 +8,7 @@ implicit none
 ! General
 public :: atomnames
 character(len=2), allocatable :: atomnames(:)
+logical :: debug_flag = .false.
 
 ! minimization params
 public :: min_max_iter, min_etol, min_ftol, min_alpha, min_debug
@@ -20,7 +21,7 @@ public :: md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_boxlength, md_debug,
 integer :: md_nsteps=1000
 real(kind=wp) :: md_ts=1.0 ,md_boxlength = 20, md_temp=300.0, md_press=100000.0! in Pa
 character(len=32) :: md_ensemble="NVE", md_int="verlet"
-logical :: md_debug = .false., md_fix_com_mom = .false.
+logical :: md_debug = .false., debug_print_all_matrices = .false., md_fix_com_mom = .false.
 
 ! Bussi thermostat params
 public :: bus_tau
@@ -276,7 +277,7 @@ subroutine parser_input(inputfile,xyzfile, topofile, t_present, c_present, m_pre
 character(len=256), intent(in) :: inputfile
 character(len=256), intent(out) :: xyzfile, topofile
 logical, intent(inout) :: t_present, c_present, m_present, m1_present,p_present, meta_present
-integer :: io
+integer :: io, dummy_idx
 logical :: mini_block = .false., md_block = .false., meta_block = .false.
 character(len=256) :: line
 character(len=32) :: dummy_symb
@@ -302,6 +303,25 @@ do
         read(line, *) dummy_symb, xyzfile
         if (len_trim(xyzfile) > 0) then
             c_present = .true.
+        end if
+    end if
+
+    if (index(trim(line), "debug") == 1) then
+        read(line, *) dummy_symb, dummy_idx
+        if (dummy_idx .le. 0 ) then
+            debug_flag = .false.
+            md_debug = .false.
+            min_debug = .false.
+            debug_print_all_matrices = .false.
+        elseif (dummy_idx == 1) then
+            debug_flag = .true.
+            md_debug = .true.
+            min_debug = .true.
+        elseif (dummy_idx > 1) then
+            debug_flag = .true.
+            md_debug = .true.
+            min_debug = .true.
+            debug_print_all_matrices = .true.
         end if
     end if
 

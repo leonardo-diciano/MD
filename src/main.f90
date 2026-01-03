@@ -3,7 +3,7 @@ program MD
 use definitions, only: wp
 use f90getopt
 use header_mod, only: pine_tree, final_phrase
-use parser_mod, only: parser_top, parser_input, atomnames
+use parser_mod, only: parser_top, parser_input, atomnames, debug_flag
 use force_field_mod, only: n_atoms,n_bonds,n_angles,n_torsions,n_impdie, bond_params, angle_params,& 
                     impdihedrals_params, tors_params,lj_params,resp_charges,mweights, force_field_calc
 use minimization_mod, only: minimization
@@ -18,7 +18,7 @@ real(kind=wp), allocatable :: positions(:,:), forces(:,:)
 real(kind=wp) :: start_time, end_time, tot_pot, gradnorm
 character(len=1) :: short
 logical :: t_present = .false. , c_present = .false., m_present = .false., m1_present =.false.,&
-         p_present = .false., i_present = .false., suppress_flag = .true., debug_flag = .false., meta_present = .false.
+         p_present = .false., i_present = .false., suppress_flag = .true., meta_present = .false.
 
 ! Parse the command line arguments with f90getopt library
 

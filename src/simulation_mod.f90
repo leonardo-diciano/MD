@@ -4,10 +4,40 @@ contains
 subroutine simulation(positions,xyzfile)
     use definitions, only: wp
     use force_field_mod, only: n_atoms
-    use parser_mod, only: md_int
+    use parser_mod, only: md_int, md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_temp, md_press,&
+                        bus_tau, ber_k, ber_tau 
     implicit none
     real(kind=wp),intent(inout) :: positions(n_atoms,3)
     character(len=256), intent(in) :: xyzfile
+
+    write(*,*)" "
+    write(*,*) "MOLECULAR DYNAMICS module"
+    write(*,*)
+    write(*,*) "Settings:"
+    write(*,"(A22,I5)") "  MD number of steps: ", md_nsteps
+    write(*,"(A17,2X,A18)") "  MD integrator: ", md_int
+    write(*,"(A15,F10.3,A3)") "  MD timestep: ", md_ts, " fs"
+    write(*,"(A15,A3)") "  MD ensemble: ", md_ensemble
+    write(*,"(A18,F10.3,A2)") "  MD temperature: ", md_temp, " K"
+    write(*,"(A15,F10.3,A3)") "  MD pressure: ", md_press, " Pa"
+    if (md_ensemble == "NVT") then
+        write(*,"(A20,A3)") "  Bussi thermostat: ", " ON"
+        write(*,"(A31,A3)") "    Bussi time constant (tau): ", bus_tau
+    elseif (md_ensemble == "NPT") then
+        write(*,"(A20,A3)") "  Bussi thermostat: ", " ON"
+        write(*,"(A31,F10.3)") "    Bussi time constant (tau): ", bus_tau
+        write(*,"(A22,A3)") "  Berendsen barostat: ", " ON"
+        write(*,"(A35,F10.3)") "    Berendsen time constant (tau): ", ber_tau
+        write(*,"(A28,F10.3)") "    Berendsen constant (k): ", ber_k
+    end if
+    if (md_fix_com_mom) then
+        write(*,"(A23,2X,A4)") "  MD fix COM momentum: ", "True"
+    else
+        write(*,"(A23,2X,A5)") "  MD fix COM momentum: ", "False"
+    end if
+    write(*,*) " "
+    write(*,*) "Starting the molecular dynamics run"
+
 
     if (md_int == "velocity_verlet" ) then
         call simulation_vel_verlet(positions,xyzfile)
@@ -22,7 +52,8 @@ subroutine simulation_verlet(positions,xyzfile)
     use print_mod, only: recprt2, recprt3
     use lin_alg, only: displacement_vec
     use force_field_mod, only: get_energy_gradient, n_atoms, mweights
-    use parser_mod, only: atomnames,md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_debug, md_fix_com_mom
+    use parser_mod, only: atomnames,md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_debug, md_fix_com_mom,&
+                        debug_print_all_matrices
     use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
     use ensemble_mod, only: bussi_thermostat, berendsen_barostat
     use propagators, only: Verlet
@@ -39,7 +70,7 @@ subroutine simulation_verlet(positions,xyzfile)
     real(kind=wp) :: gradnorm, tot_pot, instant_temp, pressure, E_kin, tot_momentum(3), tot_momentum_norm
     character(len=256) :: traj_xyzfile, properties_outfile
     integer :: istep, icartesian,i, dot, current, previous, new
-    logical :: suppress_flag = .true., debug_print_all_matrices = .false.
+    logical :: suppress_flag = .true.
 
     ! for intuitive storing of position data (since Verlet requires storing previous positions)
     previous = 1
@@ -94,12 +125,10 @@ subroutine simulation_verlet(positions,xyzfile)
         !call recprt2("acceleration",atomnames,acceleration,n_atoms)
     end if
 
-    if (md_ensemble == "NVT") then
-        write(*,*) "Turning on the Bussi thermostat"
-    elseif (md_ensemble == "NPT") then
-        write(*,*) "Turning on the Bussi thermostat"
-        write(*,*) "Turning on the Berendsend barostat"
-    end if
+    write(*,"(A10,5(A20))") "istep", "E_tot", "E_kin","E_pot","Temp", "Pressure"
+    write(*,"(A10,5(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "K", "Pa"
+    write(*,'(A)') repeat('-', 110)
+
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! PERFORM THE STEPS ITERATIVELY
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -174,6 +203,10 @@ subroutine simulation_verlet(positions,xyzfile)
             write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions_list(new,i,:)
         end do
 
+        if (mod(istep,100) == 1) then
+        write(*,"(I8,2x,5(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
+        end if
+    
         ! PREPARE NEXT STEP
         positions_list(previous,:,:) = positions_list(current,:,:)
         positions_list(current,:,:) = positions_list(new,:,:)
@@ -217,7 +250,8 @@ subroutine simulation_vel_verlet(positions,xyzfile)
     use print_mod, only: recprt2, recprt3
     use lin_alg, only: displacement_vec
     use force_field_mod, only: get_energy_gradient, n_atoms, mweights
-    use parser_mod, only: atomnames,md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_debug, md_fix_com_mom
+    use parser_mod, only: atomnames,md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_debug, md_fix_com_mom,&
+                        debug_print_all_matrices
     use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
     use ensemble_mod, only: berendsen_barostat, bussi_thermostat
     use propagators, only: velocity_verlet_position, velocity_verlet_velocity
@@ -234,7 +268,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
     real(kind=wp) :: gradnorm, tot_pot, instant_temp, pressure, E_kin, tot_momentum(3), tot_momentum_norm
     character(len=256) :: traj_xyzfile, properties_outfile
     integer :: istep, icartesian,i, dot, current, previous, new
-    logical :: suppress_flag = .true., debug_print_all_matrices = .false.
+    logical :: suppress_flag = .true.
 
     ! for intuitive storing of position data (since Verlet requires storing previous positions)
     current = 1
@@ -279,17 +313,14 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1:3)
     end do
 
-    if (md_ensemble == "NVT") then
-        write(*,*) "Turning on the Bussi thermostat"
-    elseif (md_ensemble == "NPT") then
-        write(*,*) "Turning on the Bussi thermostat"
-        write(*,*) "Turning on the Berendsend barostat"
-    end if
-
     if (md_debug) then
         write(*,"(/A,I5)") "Initial quantities at step ",istep
         call recprt2("r(t)",atomnames,positions_list(current,:,:),n_atoms)
     end if
+
+    write(*,"(A10,5(A20))") "istep", "E_tot", "E_kin","E_pot","Temp", "Pressure"
+    write(*,"(A10,5(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "K", "Pa"
+    write(*,'(A)') repeat('-', 110)
 
     do while (istep<md_nsteps)
         istep = istep +1
@@ -369,6 +400,10 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         do i=1, size(positions,1), 1
             write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions_list(new,i,:)
         end do
+
+        if (mod(istep,100) == 1) then
+        write(*,"(I8,2x,5(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
+        end if
 
         ! PREPARE NEXT STEP
         positions_list(current,:,:) = positions_list(new,:,:)

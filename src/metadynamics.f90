@@ -11,7 +11,8 @@ subroutine run_metadynamics(positions,xyzfile)
 use definitions, only: wp
 use force_field_mod, only: n_atoms
 use parser_mod, only: meta_cv, meta_tau, meta_nsteps, meta_cv_type, meta_dT, meta_omega, meta_sigma, &
-                     md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_temp, md_press
+                     md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_temp, md_press, bus_tau, ber_k,&
+                     ber_tau
 implicit none
 
 real(kind=wp), intent(inout) :: positions(n_atoms,3)
@@ -26,13 +27,31 @@ if ((meta_nsteps * meta_tau) > (md_nsteps * md_ts)) then
     md_nsteps = meta_nsteps + 10
 end if
 
+write(*,*)" "
 write(*,*) "METADYNAMICS module"
+write(*,*)
 write(*,*) "Settings:"
 write(*,"(A22,I5)") "  MD number of steps: ", md_nsteps
+write(*,"(A17,A16)") "  MD integrator: ", " Velocity Verlet"
 write(*,"(A15,F10.3,A3)") "  MD timestep: ", md_ts, " fs"
 write(*,"(A15,A3)") "  MD ensemble: ", md_ensemble
 write(*,"(A18,F10.3,A2)") "  MD temperature: ", md_temp, " K"
 write(*,"(A15,F10.3,A3)") "  MD pressure: ", md_press, " Pa"
+if (md_ensemble == "NVT") then
+    write(*,"(A20,A3)") "  Bussi thermostat: ", " ON"
+    write(*,"(A31,A3)") "    Bussi time constant (tau): ", bus_tau
+elseif (md_ensemble == "NPT") then
+    write(*,"(A20,A3)") "  Bussi thermostat: ", " ON"
+    write(*,"(A31,F10.3)") "    Bussi time constant (tau): ", bus_tau
+    write(*,"(A22,A3)") "  Berendsen barostat: ", " ON"
+    write(*,"(A35,F10.3)") "    Berendsen time constant (tau): ", ber_tau
+    write(*,"(A28,F10.3)") "    Berendsen constant (k): ", ber_k
+end if
+if (md_fix_com_mom) then
+    write(*,"(A23,2X,A4)") "  MD fix COM momentum: ", "True"
+else
+    write(*,"(A23,2X,A5)") "  MD fix COM momentum: ", "False"
+end if
 write(*,"(A19,A8,2X,4(I4,2X))") "  Metadynamics CV: ", meta_cv_type, meta_cv(:)
 write(*,"(A32,I10)") "  Metadynamics number of steps: ", meta_nsteps
 write(*,"(A31,F10.3,A3)") "  Metadynamics timestep (tau): ", meta_tau, " fs"
