@@ -23,14 +23,14 @@ topfile = str(main_name)+".top"
 with open(topfile, "w") as f:
     f.write("[AtomTypes] %i"%n_atoms)
     for atom in range(n_atoms):
-        f.write("\n%-4i%-4s%-4s%f"%(atom+1,atomtype_short,atomtype_long,weight))
+        f.write("\n%-6i%-4s%-4s%f"%(atom+1,atomtype_short,atomtype_long,weight))
     f.write("\n\n[Bonds] 0")
     f.write("\n\n[Angles] 0")
     f.write("\n\n[Dihedrals] 0")
     f.write("\n\n[ImproperDihedrals] 0")
     f.write("\n\n[LJ]")
     for atom in range(n_atoms):
-        f.write("\n%-4i%10.5f%10.5f"%(atom+1,sigma,eps))
+        f.write("\n%-6i%10.5f%10.5f"%(atom+1,sigma,eps))
     f.write("\n\n[Charges]")
 
 
