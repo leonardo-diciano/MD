@@ -4,7 +4,11 @@
 import sys
 import random
 
-main_name = "LJ_particles"
+if len(sys.argv)==1:
+    main_name = "LJ_particles"
+else:
+    main_name = sys.argv[1]
+
 
 helpmode = False
 
@@ -14,8 +18,8 @@ atomtype_short = "Ar"
 atomtype_long = "Ar"
 weight = 40
 boxlength = 40
-sigma = 2
-eps = 0.1
+sigma = 0.03405 #Å
+eps = 0.996/4.184 #kcal/mol
 
 
 topfile = str(main_name)+".top"
@@ -33,6 +37,7 @@ with open(topfile, "w") as f:
         f.write("\n%-6i%10.5f%10.5f"%(atom+1,sigma,eps))
     f.write("\n\n[Charges]")
 
+print("wrote topology file to",topfile)
 
 xyzfile = str(main_name) + ".xyz"
 
@@ -46,3 +51,5 @@ with open(xyzfile, "w") as d:
         #d.write("\n%-4s"%atomtype_short+3*"%12.6f"%(x,y,z))
         d.write("\n%-4s"%weight+3*"%12.6f"%(x,y,z))
     d.write("\n")
+
+print("wrote xyzfile to",xyzfile)
