@@ -1,4 +1,6 @@
-! Subroutine to parse topology files and store data
+! Module with subroutines to parse
+! topology files, input files and store data
+!
 ! Author: Leonardo Di Ciano (2025)
 
 module parser_mod
@@ -19,9 +21,9 @@ logical :: min_debug = .false.
 ! MD params
 public :: md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_boxlength, md_debug, md_int
 integer :: md_nsteps=1000
-real(kind=wp) :: md_ts=1.0 ,md_boxlength = 20, md_temp=300.0, md_press=100000.0! in Pa
+real(kind=wp) :: md_ts=1.0 ,md_boxlength = 15, md_temp=300.0, md_press=100000.0! in Pa
 character(len=32) :: md_ensemble="NVE", md_int="verlet"
-logical :: md_debug = .false., debug_print_all_matrices = .false., md_fix_com_mom = .false.
+logical :: md_debug = .false., debug_print_all_matrices = .false., md_fix_com_mom = .false., md_pbc = .false.
 
 ! Bussi thermostat params
 public :: bus_tau
@@ -272,7 +274,7 @@ end subroutine
 
 subroutine parser_input(inputfile,xyzfile, topofile, t_present, c_present, m_present, m1_present,&
          p_present, meta_present)
-
+! Subroutine to parse input files 
 
 character(len=256), intent(in) :: inputfile
 character(len=256), intent(out) :: xyzfile, topofile
@@ -374,6 +376,11 @@ do
             read(line,*) dummy_symb, md_ensemble
         elseif (index(trim(line),"press") == 1) then
             read(line,*) dummy_symb, md_press
+        elseif (index(trim(line),"fix_com") == 1) then
+            read(line,*) dummy_symb, dummy_symb
+            if (dummy_symb == "true") then
+                md_fix_com_mom = .true.
+            endif
         elseif (index(trim(line),"debug") == 1) then
             md_debug = .true.
         elseif (index(trim(line),"berendsen_tau") == 1) then

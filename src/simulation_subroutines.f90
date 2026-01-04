@@ -1,3 +1,8 @@
+! Complementary subroutines for
+! molecular dynamics simulations
+!
+! Authors: Lila Zapp (2025)
+
 module simulation_subroutines
 contains
 
@@ -110,9 +115,6 @@ subroutine get_tot_momentum(velocities, tot_momentum)
         end do
     end do
 
-    !if (md_debug) then
-    !    write(*,"(/A,3(F10.6),A)") "The total momentum of the system is ", tot_momentum, " g Å/(mol fs)"
-    !end if
 end subroutine get_tot_momentum
 
 subroutine get_E_kin(velocities, E_kin)
@@ -129,16 +131,11 @@ subroutine get_E_kin(velocities, E_kin)
 
     do iatom = 1,n_atoms
         do icartesian = 1, 3
-            !E_kin = E_kin + 0.5 * mweights(iatom)*velocities(iatom,icartesian)**2
-                                    !g/mol               !Å^2/fs^2
-            !E_kin = E_kin + 0.5 * 1e-3 * mweights(iatom)* 1e10 * velocities(iatom,icartesian)**2
-            !J/mol                       !kg/mol               ! m^2/s^2
             E_kin = E_kin + 0.5 * 1e4 * mweights(iatom) * velocities(iatom,icartesian)**2
             !kJ/mol                       !kg/mol               ! m^2/s^2
         end do
     end do
 
-    !write(*,*) "The kinetic energy is", E_kin, "kJ/mol"
 end subroutine get_E_kin
 
 subroutine get_temperature(velocities, instant_temp, E_kin)
@@ -155,22 +152,31 @@ subroutine get_temperature(velocities, instant_temp, E_kin)
     instant_temp = 2 * E_kin /(boltzmann*3*n_atoms)
                        !kJ/mol  !kJ/(K mol)
 
-    !write(*,*) "The temperature is ", instant_temp, "K"
 end subroutine get_temperature
 
 subroutine get_pressure(positions, forces,instant_temp, pressure)
     use definitions, only: wp, boltzmann, avogad
-    use parser_mod, only: md_boxlength
+    use parser_mod, only: md_boxlength, md_pbc
     use force_field_mod, only: n_atoms
     
     implicit none
     real(kind=wp), intent(in) ::instant_temp, positions(n_atoms,3),forces(n_atoms,3)
     real(kind=wp), intent(out) :: pressure
 
-    real(kind=wp) :: volume, avg
+    real(kind=wp) :: volume, avg, max_x, min_x, max_y, min_y, max_z, min_z
     integer :: icartesian, iatom
 
-    volume = md_boxlength * md_boxlength * md_boxlength ! Å^3
+    if (md_pbc) then
+        volume = md_boxlength * md_boxlength * md_boxlength ! Å^3
+    else
+        max_x = maxval(positions(:,1))
+        min_x = minval(positions(:,1))
+        max_y = maxval(positions(:,2))
+        min_y = minval(positions(:,2))
+        max_z = maxval(positions(:,3))
+        min_z = minval(positions(:,3))
+        volume = (max_x-min_x) * (max_y-min_y) * (max_z-min_z) ! Å^3
+    end if
 
     avg = 0
     do iatom = 1, n_atoms
@@ -183,8 +189,6 @@ subroutine get_pressure(positions, forces,instant_temp, pressure)
     !kJ/mol/Å^3      !Å^3              !kJ/mol
 
     pressure = pressure * 1e30 / avogad
-
-    !write(*,*) "The pressure is ",pressure,"kJ/m^3 = kPa"
 
 end subroutine get_pressure
 

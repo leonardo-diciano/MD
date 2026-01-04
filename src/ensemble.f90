@@ -59,7 +59,10 @@ real(kind=wp), intent(inout) :: positions (n_atoms,3)
 real(kind=wp) :: lambda
 
 ! Calculate the rescaling of the cell axis given by different P
-lambda = ( 1 + ( ((ber_k * md_ts)/ber_tau) * (new_P - md_press)))**(1/3)
+lambda = ( 1 + ( ((ber_k * md_ts)/ber_tau) * (new_P - md_press)))**(1.0/3.0)
+
+! Reduce oscillations in the barostat by not allowing too large scaling
+lambda = max(0.95_wp, min(1.05_wp, lambda))
 
 ! Rescale coordinates to a new "box volume"
 positions = lambda * positions

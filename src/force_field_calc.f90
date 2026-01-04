@@ -674,7 +674,7 @@ end if
 ! Calculate the total potential energy
 tot_pot = bond_pot + angle_pot + die_pot + imp_die_pot + lj_pot + coulomb_pot + pot_14
 
-if (.not. suppress_flag) then
+if (debug_flag) then
     write(*,*) ""
     write(*,*) "Total Potential energy: ", tot_pot, "kJ/mol"
     write(*,*) ""
