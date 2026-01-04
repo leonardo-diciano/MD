@@ -2,10 +2,10 @@ module simulation_mod
 contains
 
 subroutine simulation(positions,xyzfile)
-    use definitions, only: wp
+    use definitions, only: wp, md_pbc
     use force_field_mod, only: n_atoms
     use parser_mod, only: md_int, md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_temp, md_press,&
-                        bus_tau, ber_k, ber_tau, md_pbc
+                        bus_tau, ber_k, ber_tau
     implicit none
     real(kind=wp),intent(inout) :: positions(n_atoms,3)
     character(len=256), intent(in) :: xyzfile
@@ -36,7 +36,7 @@ subroutine simulation(positions,xyzfile)
         write(*,"(A40,2X,A5)") "  MD fix COM momentum: ", "False"
     end if
     if (md_pbc) then
-        write(*,"(A40)") "Periodic Boundary Conditions: ", md_pbc
+        write(*,"(A40)") "Periodic Boundary Conditions: True"
     end if
     write(*,*) " "
     write(*,*) "Starting the molecular dynamics run"
@@ -51,12 +51,12 @@ subroutine simulation(positions,xyzfile)
 end subroutine simulation
 
 subroutine simulation_verlet(positions,xyzfile)
-    use definitions, only: wp, avogad
+    use definitions, only: wp, avogad, md_pbc
     use print_mod, only: recprt2, recprt3
     use lin_alg, only: displacement_vec
     use force_field_mod, only: get_energy_gradient, n_atoms, mweights
     use parser_mod, only: atomnames,md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_debug, md_fix_com_mom,&
-                        debug_print_all_matrices, md_pbc
+                        debug_print_all_matrices
     use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
     use ensemble_mod, only: bussi_thermostat, berendsen_barostat
     use propagators, only: Verlet
@@ -66,7 +66,6 @@ subroutine simulation_verlet(positions,xyzfile)
 
     real(kind=wp),intent(inout) :: positions(n_atoms,3)
     character(len=256), intent(in) :: xyzfile
-
 
     real(kind=wp) :: displacement(n_atoms), positions_previous(n_atoms,3), input_positions(n_atoms,3), forces(n_atoms,3), &
                     acceleration(n_atoms,3), total_displacement(n_atoms), velocities(n_atoms,3)

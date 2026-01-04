@@ -13,3 +13,5 @@ md_program
 *.properties.txt
 *.minimized.xyz
 *.traj.xyz
+*.png
+

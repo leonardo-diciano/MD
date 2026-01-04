@@ -28,8 +28,9 @@ end function
 
 subroutine force_field_calc(positions,tot_pot,forces, debug_flag, suppress_flag)
 
-use definitions, only: wp, pi, kcal_to_kJ, safeguard
+use definitions, only: wp, pi, kcal_to_kJ, safeguard, md_pbc, pbc_debug
 use print_mod, only: recprt,recprt3
+
 implicit none
 
 logical, intent(in) :: debug_flag,suppress_flag
@@ -73,7 +74,16 @@ do i=1, n_bonds, 1
     a2 = int(bond_params(i,2))
     one_bond_list(i,:)=[a1, a2]
     ! Calculate distance between a1 and a2
-    distance = SQRT(dot_product(positions(a2,1:3) - positions(a1,1:3), positions(a2,1:3) - positions(a1,1:3)))
+    if (md_pbc) then
+        if (pbc_debug) then; write(*,*) "Bond between ",a1,a2; end if
+        CALL get_min_image_distance(positions(a1,:), positions(a2,:), distance)
+        if (pbc_debug) then
+        write(*,"(A25,F12.6,A,/)") "distance without MIC : ", SQRT(dot_product(positions(a2,1:3) - positions(a1,1:3), &
+                                                positions(a2,1:3) - positions(a1,1:3))), " Å"
+        end if
+    else
+        distance = SQRT(dot_product(positions(a2,1:3) - positions(a1,1:3), positions(a2,1:3) - positions(a1,1:3)))
+    end if
 
     ! Calculate the force magnitude
                     !force constant                            equilibrium distance
@@ -715,6 +725,41 @@ subroutine get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag
 
 
 end subroutine
+
+
+
+subroutine get_min_image_distance(pos_atom1, pos_atom2, min_image_distance)
+    use definitions, only: wp, pbc_debug, md_boxlength
+
+    implicit none
+
+    real(kind=wp), intent(in) :: pos_atom1(3), pos_atom2(3)
+    real(kind=wp), intent(out) :: min_image_distance
+    real(kind=wp) :: dx(5), d_mic_x
+    integer :: k, count, icartesian
+
+    min_image_distance = 0
+
+    do icartesian = 1,3
+        dx(:) = 0
+        count = 0
+        do k = -2,2
+            count = count + 1
+            dx(count) = pos_atom1(icartesian) - pos_atom2(icartesian) + k * md_boxlength
+        end do
+        d_mic_x = MIN(abs(dx(1)),abs(dx(2)),abs(dx(3)),abs(dx(4)),abs(dx(5)))
+        if (pbc_debug) then
+            write(*,"(A,I1,A,5(F12.6),A,F12.6)") "cartesian ",icartesian," : MIN(",dx(:),") = ", d_mic_x
+        end if
+        min_image_distance = min_image_distance + d_mic_x**2
+    end do
+
+    min_image_distance = SQRT(min_image_distance)
+
+    write(*,"(A25,F12.6,A)") "min_image_distance = ", min_image_distance, " Å"
+
+
+end subroutine get_min_image_distance
 
 
 end module

@@ -17,12 +17,12 @@ real(kind=wp) :: min_etol=1.0e-6, min_ftol=1.0e-4, min_alpha = 1e-4
 logical :: min_debug = .false.
 
 ! MD params
-public :: md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_boxlength, md_debug, md_int, md_pbc
+public :: md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_debug, md_int
 integer :: md_nsteps=1000
-real(kind=wp) :: md_ts=1.0 ,md_boxlength = 10, md_temp=300.0, md_press=100000.0! in Pa
+real(kind=wp) :: md_ts=1.0 , md_temp=300.0, md_press=100000.0! in Pa
 !character(len=32) :: md_ensemble="NVE", md_int="verlet"
 character(len=32) :: md_ensemble="NVT", md_int="verlet"
-logical :: md_debug = .false., debug_print_all_matrices = .false., md_fix_com_mom = .false., md_pbc = .false.
+logical :: md_debug = .false., debug_print_all_matrices = .false., md_fix_com_mom = .false.
 
 ! Bussi thermostat params
 public :: bus_tau

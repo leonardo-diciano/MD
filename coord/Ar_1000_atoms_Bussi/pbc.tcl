@@ -18,7 +18,7 @@ trace add variable ::vmd_frame write update_pbc_box
 
 # Set atom representation to VDW spheres
 mol delrep 0 top
-mol representation VDW 1.0 12.0
+mol representation VDW 0.5 12.0
 mol color Name
 mol selection all
 mol material Opaque

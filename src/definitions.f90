@@ -6,6 +6,12 @@ implicit none
 public :: wp
 integer,parameter :: wp = 8
 
+
+! FOR PERIODIC BOUNDARY CONDITIONS
+public :: md_pbc, pbc_debug, md_boxlength
+logical :: md_pbc = .true., pbc_debug = .true.
+real(kind=wp) :: md_boxlength = 10
+
 ! scientific constants
 public ::  pi, kcal_to_kJ, safeguard, boltzmann, kB, proton_mass,avogad
 real(kind = wp), parameter ::   pi = 3.14159265358979
