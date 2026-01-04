@@ -76,13 +76,16 @@ do i=1, n_bonds, 1
     ! Calculate distance between a1 and a2
     if (md_pbc) then
         if (pbc_debug) then; write(*,*) "Bond between ",a1,a2; end if
-        CALL get_min_image_distance(positions(a1,:), positions(a2,:), distance)
+        CALL get_min_image_dist_vector(positions(a1,:), positions(a2,:), d12)
+        distance = SQRT(dot_product(d12,d12))
         if (pbc_debug) then
-        write(*,"(A25,F12.6,A,/)") "distance without MIC : ", SQRT(dot_product(positions(a2,1:3) - positions(a1,1:3), &
-                                                positions(a2,1:3) - positions(a1,1:3))), " Å"
+            write(*,"(A25,F12.6,A)") "distance with MIC : ", distance, " Å"
+            write(*,"(A25,F12.6,A,/)") "distance without MIC : ", SQRT(dot_product( positions(a2,:) - positions(a1,:),&
+                                                positions(a2,:) - positions(a1,:))), " Å"
         end if
     else
-        distance = SQRT(dot_product(positions(a2,1:3) - positions(a1,1:3), positions(a2,1:3) - positions(a1,1:3)))
+        d12 = positions(a2,:) - positions(a1,:)
+        distance = SQRT(dot_product(d12,d12))
     end if
 
     ! Calculate the force magnitude
@@ -90,8 +93,8 @@ do i=1, n_bonds, 1
     f_magnitude = -  2 * bond_params(i,3) * kcal_to_kJ * (distance - bond_params(i,4))
 
     ! Calculate the force on each atom and update the force vector
-    forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
-    forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
+    forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( d12 / distance)
+    forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( d12 / distance)
 
     ! Calculate the bond contributions to potential energy
     !      force constant                           equilibrium distance
@@ -138,8 +141,17 @@ do i=1, n_angles, 1
     a3 = int(angle_params(i,3))
     two_bonds_list(i,:)=[a1, a3]
     ! Calculate the bond/distance vectors and their norm
-    d12 = positions(a1,1:3) - positions(a2,1:3)
-    d23 = positions(a3,1:3) - positions(a2,1:3)
+    if (md_pbc) then
+        if (pbc_debug) then; write(*,*) "Angle between ",a1,a2,a3; end if
+        CALL get_min_image_dist_vector(positions(a1,:), positions(a2,:), d12)
+        write(*,"(A25,3(F12.6),A)") "d12 without MIC : ",positions(a1,1:3) - positions(a2,1:3) , " Å"
+        CALL get_min_image_dist_vector(positions(a3,:), positions(a2,:), d23)
+        write(*,"(A25,3(F12.6),A,/)") "d23 without MIC : ", positions(a3,1:3) - positions(a2,1:3) , " Å"
+    else
+        d12 = positions(a1,1:3) - positions(a2,1:3)
+        d23 = positions(a3,1:3) - positions(a2,1:3)
+    end if
+
     d12_norm = SQRT(dot_product(d12,d12))
     d23_norm = SQRT(dot_product(d23,d23))
 
@@ -726,40 +738,40 @@ subroutine get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag
 
 end subroutine
 
-
-
-subroutine get_min_image_distance(pos_atom1, pos_atom2, min_image_distance)
+subroutine get_min_image_dist_vector(pos_atom1, pos_atom2, mic_dist_vect)
     use definitions, only: wp, pbc_debug, md_boxlength
 
     implicit none
 
     real(kind=wp), intent(in) :: pos_atom1(3), pos_atom2(3)
-    real(kind=wp), intent(out) :: min_image_distance
-    real(kind=wp) :: dx(5), d_mic_x
-    integer :: k, count, icartesian
+    real(kind=wp), intent(out) :: mic_dist_vect(3)
+    real(kind=wp) :: dx(3)
+    integer :: k, count, icartesian, d_mic_ind
 
-    min_image_distance = 0
+    mic_dist_vect(:) = 0
 
     do icartesian = 1,3
         dx(:) = 0
         count = 0
-        do k = -2,2
+        do k = -1,1
             count = count + 1
+            ! looking at the central box and its copy to the right and left
             dx(count) = pos_atom1(icartesian) - pos_atom2(icartesian) + k * md_boxlength
         end do
-        d_mic_x = MIN(abs(dx(1)),abs(dx(2)),abs(dx(3)),abs(dx(4)),abs(dx(5)))
+        ! define the distance vector using the shortest dx value (separately consider x,y and z)
+        d_mic_ind = MINLOC(abs(dx), dim=1)
+        mic_dist_vect(icartesian) = dx(d_mic_ind)
+
         if (pbc_debug) then
-            write(*,"(A,I1,A,5(F12.6),A,F12.6)") "cartesian ",icartesian," : MIN(",dx(:),") = ", d_mic_x
+            write(*,"(A,I1,A,3(F12.6),A,F12.6)") "cartesian ",icartesian," : MIN(",dx(:),") = ", dx(d_mic_ind)
         end if
-        min_image_distance = min_image_distance + d_mic_x**2
     end do
 
-    min_image_distance = SQRT(min_image_distance)
-
-    write(*,"(A25,F12.6,A)") "min_image_distance = ", min_image_distance, " Å"
+    if (pbc_debug) then; write(*,"(A25,3(F12.6),A)") "min_image_distance_vector = ", mic_dist_vect, " Å"; end if
 
 
-end subroutine get_min_image_distance
+end subroutine get_min_image_dist_vector
+
 
 
 end module

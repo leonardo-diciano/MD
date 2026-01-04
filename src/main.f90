@@ -112,10 +112,11 @@ CALL pine_tree()
 
 CALL parser_top(xyzfile,topofile,positions,atomtypes,debug_flag)
 
-if (pbc_debug) then; call recprt3("Coordinates before PBC update",positions,n_atoms); end if
-if (md_pbc) then; CALL pbc_ctrl_positions(positions); end if
-if (pbc_debug) then; call recprt3("Coordinates after PBC update",positions,n_atoms); end if
-
+if (md_pbc) then
+    if (pbc_debug) then; call recprt3("Coordinates before PBC update",positions,n_atoms); end if
+    CALL pbc_ctrl_positions(positions)
+    if (pbc_debug) then; call recprt3("Coordinates after PBC update",positions,n_atoms); end if
+end if
 
 allocate(forces(n_atoms,3))
 CALL force_field_calc(positions,tot_pot,forces,debug_flag, suppress_flag = .false.)
