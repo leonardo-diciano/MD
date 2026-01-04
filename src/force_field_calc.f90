@@ -78,7 +78,7 @@ do i=1, n_bonds, 1
     ! Calculate distance between a1 and a2
     if (md_pbc) then
         if (pbc_debug) then; write(*,*) "Bond between ",a1,a2; end if
-        CALL get_min_image_dist_vector(positions(a1,:), positions(a2,:), d12)
+        CALL get_min_image_dist_vector(positions(a2,:), positions(a1,:), d12)
         distance = SQRT(dot_product(d12,d12))
         if (pbc_debug) then
             write(*,"(A25,F12.6,A)") "distance with MIC : ", distance, " Å"
