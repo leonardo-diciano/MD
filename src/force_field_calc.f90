@@ -58,7 +58,9 @@ charge_to_kJ_mol =  332.05 / kcal_to_kJ
 forces(:,:) = 0         ! initialize the force vector
 tot_pot=0
 
-! Bonds term
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! BOND TERMS
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 if (debug_flag .and. (n_bonds > 0)) then
     write(*,*) ""
@@ -123,7 +125,9 @@ if (.not. suppress_flag) then
     end if
 end if
 
-! Angles term
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! ANGLE TERMS
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 if (debug_flag .and. (n_angles > 0)) then
     write(*,*) ""
@@ -144,12 +148,12 @@ do i=1, n_angles, 1
     if (md_pbc) then
         if (pbc_debug) then; write(*,*) "Angle between ",a1,a2,a3; end if
         CALL get_min_image_dist_vector(positions(a1,:), positions(a2,:), d12)
-        write(*,"(A25,3(F12.6),A)") "d12 without MIC : ",positions(a1,1:3) - positions(a2,1:3) , " Å"
+        if (pbc_debug) then; write(*,"(A25,3(F12.6),A)") "d12 without MIC : ",positions(a1,:) - positions(a2,:) , " Å"; end if
         CALL get_min_image_dist_vector(positions(a3,:), positions(a2,:), d23)
-        write(*,"(A25,3(F12.6),A,/)") "d23 without MIC : ", positions(a3,1:3) - positions(a2,1:3) , " Å"
+        if (pbc_debug) then; write(*,"(A25,3(F12.6),A,/)") "d23 without MIC : ",positions(a3,:) - positions(a2,:)," Å";end if
     else
-        d12 = positions(a1,1:3) - positions(a2,1:3)
-        d23 = positions(a3,1:3) - positions(a2,1:3)
+        d12 = positions(a1,:) - positions(a2,:)
+        d23 = positions(a3,:) - positions(a2,:)
     end if
 
     d12_norm = SQRT(dot_product(d12,d12))
@@ -202,7 +206,9 @@ if (.not. suppress_flag) then
 end if
 
 
-! Dihedrals term
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! DIHEDRAL TERMS
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 if (debug_flag .and. (n_torsions > 0)) then
     write(*,*) ""
@@ -234,9 +240,23 @@ do i=1, n_torsions, 1
     end if
 
     ! Calculate bond/distance vectors
-    d12 = positions(a2,1:3) - positions(a1,1:3)
-    d23 = positions(a3,1:3) - positions(a2,1:3)
-    d34 = positions(a4,1:3) - positions(a3,1:3)
+    if (md_pbc) then
+        if (pbc_debug) then; write(*,*) "Dihedral between ",a1,a2,a3,a4; end if
+        CALL get_min_image_dist_vector(positions(a2,:),positions(a1,:), d12)
+        if (pbc_debug) then; write(*,"(A25,3(F12.6),A)") "d12 without MIC : ",positions(a2,:) - positions(a1,:)," Å"; end if
+
+        CALL get_min_image_dist_vector(positions(a3,:), positions(a2,:), d23)
+        if (pbc_debug) then; write(*,"(A25,3(F12.6),A)") "d23 without MIC : ",positions(a3,:) - positions(a2,:)," Å"; end if
+
+        CALL get_min_image_dist_vector(positions(a4,:), positions(a3,:), d34)
+        if (pbc_debug) then; write(*,"(A25,3(F12.6),A,/)") "d23 without MIC : ",positions(a4,:) - positions(a3,:)," Å"; end if
+    else
+        d12 = positions(a2,:) - positions(a1,:)
+        d23 = positions(a3,:) - positions(a2,:)
+        d34 = positions(a4,:) - positions(a3,:)
+    end if
+
+
 
     ! Define a (and b) as cross product and its norm a_norm (and b_norm)
     a = cross_product(d12,d23)
@@ -330,7 +350,9 @@ if (k > 1) then
 end if
 
 
-! Improper dihedrals term
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! IMPROPER DIHEDRAL TERMS
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 if (debug_flag .and. (n_impdie > 0)) then
     write(*,*) ""
@@ -350,9 +372,21 @@ do i=1, n_impdie, 1
     a4 = int(impdihedrals_params(i,4))
 
     ! Calculate bond/distance vectors
-    d12 = positions(a2,1:3) - positions(a1,1:3)
-    d23 = positions(a3,1:3) - positions(a2,1:3)
-    d34 = positions(a4,1:3) - positions(a3,1:3)
+    if (md_pbc) then
+        if (pbc_debug) then; write(*,*) "Dihedral between ",a1,a2,a3,a4; end if
+        CALL get_min_image_dist_vector(positions(a2,:),positions(a1,:), d12)
+        if (pbc_debug) then; write(*,"(A25,3(F12.6),A)") "d12 without MIC : ",positions(a2,:) - positions(a1,:)," Å"; end if
+
+        CALL get_min_image_dist_vector(positions(a3,:), positions(a2,:), d23)
+        if (pbc_debug) then; write(*,"(A25,3(F12.6),A)") "d23 without MIC : ",positions(a3,:) - positions(a2,:)," Å"; end if
+
+        CALL get_min_image_dist_vector(positions(a4,:), positions(a3,:), d34)
+        if (pbc_debug) then; write(*,"(A25,3(F12.6),A,/)") "d23 without MIC : ",positions(a4,:) - positions(a3,:)," Å"; end if
+    else
+        d12 = positions(a2,:) - positions(a1,:)
+        d23 = positions(a3,:) - positions(a2,:)
+        d34 = positions(a4,:) - positions(a3,:)
+    end if
 
     ! Define a (and b) as cross product and its norm a_norm (and b_norm)
     a = cross_product(d12,d23)

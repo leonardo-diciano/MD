@@ -113,6 +113,7 @@ CALL pine_tree()
 CALL parser_top(xyzfile,topofile,positions,atomtypes,debug_flag)
 
 if (md_pbc) then
+    write(*,"(/A)") "PERIODIC BOUNDARY CONDITIONS ACTIVATED"
     if (pbc_debug) then; call recprt3("Coordinates before PBC update",positions,n_atoms); end if
     CALL pbc_ctrl_positions(positions)
     if (pbc_debug) then; call recprt3("Coordinates after PBC update",positions,n_atoms); end if
