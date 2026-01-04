@@ -1,3 +1,9 @@
+! Modules with subroutines that performs 
+! molecular dynamics simulations with 
+! Verlet and velocity Verlet algorithms.
+!
+! Authors: Lila Zapp and Leonardo Di Ciano (2025)
+
 module simulation_mod
 contains
 
@@ -10,6 +16,7 @@ subroutine simulation(positions,xyzfile)
     real(kind=wp),intent(inout) :: positions(n_atoms,3)
     character(len=256), intent(in) :: xyzfile
 
+    ! Print settings on the output file
     write(*,*)" "
     write(*,*) "MOLECULAR DYNAMICS module"
     write(*,*)
@@ -38,7 +45,7 @@ subroutine simulation(positions,xyzfile)
     write(*,*) " "
     write(*,*) "Starting the molecular dynamics run"
 
-
+    ! Select the right subroutine for the chosen integrator
     if (md_int == "velocity_verlet" ) then
         call simulation_vel_verlet(positions,xyzfile)
     else
@@ -121,8 +128,6 @@ subroutine simulation_verlet(positions,xyzfile)
         write(*,"(/A,I5)") "Initial quantities at step ",istep
         call recprt2("r(t-Δt)",atomnames,positions_list(previous,:,:),n_atoms)
         call recprt2("r(t)",atomnames,positions_list(current,:,:),n_atoms)
-        !call recprt2("r(t+Δt)",atomnames,positions_list(new,:,:),n_atoms)
-        !call recprt2("acceleration",atomnames,acceleration,n_atoms)
     end if
 
     write(*,"(A10,5(A20))") "istep", "E_tot", "E_kin","E_pot","Temp", "Pressure"
@@ -304,7 +309,6 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         write(*,"(/A,/A,/A)") "In propagation","---------------------------------------","Initialization:"
         call recprt2("forces",atomnames,forces,n_atoms)
         write(*,"(A,*(/,F10.6))") "masses: [g/mol]", mweights
-       !call recprt2("acceleration = forces / masses",atomnames,acceleration,n_atoms)
         write(*,"(A)") "Start performing steps ..."
     end if
 

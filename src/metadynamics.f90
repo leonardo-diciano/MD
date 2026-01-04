@@ -1,6 +1,9 @@
-! Module to handle metadynamics
+! Module for well-tempered metadynamics 
+! simulations with subroutines to add 
+! the bias potential and perform the 
+! simulation with velocity Verlet
 !
-
+! Author: Leonardo Di Ciano (2025)
 
 module metadynamics_mod
 implicit none
@@ -8,6 +11,7 @@ implicit none
 contains
 
 subroutine run_metadynamics(positions,xyzfile)
+! The subroutine handles the initialization of a metadynamics simulation
 use definitions, only: wp
 use force_field_mod, only: n_atoms
 use parser_mod, only: meta_cv, meta_tau, meta_nsteps, meta_cv_type, meta_dT, meta_omega, meta_sigma, &
@@ -27,6 +31,7 @@ if ((meta_nsteps * meta_tau) > (md_nsteps * md_ts)) then
     md_nsteps = meta_nsteps + 10
 end if
 
+! Print settings of the metadynamics
 write(*,*)" "
 write(*,*) "METADYNAMICS module"
 write(*,*)
@@ -61,12 +66,13 @@ write(*,"(A39,F10.3)") "  Metadynamics Gaussian width (sigma): ", meta_sigma
 write(*,*) " "
 write(*,*) "Starting the metadynamics run"
 
+! Start the simulation subroutine
 CALL metadynamics_propagation(positions,xyzfile)
 
 end subroutine
 
 subroutine metadynamics_propagation(positions,xyzfile)
-! Velocity Verlet Propagation scheme with integrated well-tempered metadynamics
+! Well-Tempered metadynamics with velocity Verlet integration scheme
 use definitions, only: wp, avogad
 use print_mod, only: recprt2, recprt3
 use lin_alg, only: displacement_vec
@@ -105,6 +111,7 @@ tot_bias_pot = 0.0
 tot_pot = 0.0
 forces(:,:) = 0.0
 
+! Evaluate the intial value of the CV, depending on its type
 if (meta_cv_type == "distance") then
     CALL distance_bias(bias_param,positions_list(current,:,:),tot_pot,forces,init_cv_value,step_bias_pot)
 elseif (meta_cv_type == "angle") then
@@ -116,9 +123,11 @@ else
     stop
 end if
 
+! Initial forces and velocities
 call get_energy_gradient(positions_list(current,:,:),tot_pot,forces, gradnorm, suppress_flag)
 call init_v(velocities(:,:)) 
 
+! initial acceleration, no bias on the first step
 do icartesian = 1,3
     acceleration_list(current,:,icartesian) = 1e-4 * forces(:,icartesian) / mweights(:)
     !acceleration in Å/fs^2                    in kJ/mol/Å           in g/mol;
@@ -149,11 +158,11 @@ write(*,'(A)') repeat('-', 150)
  do while (istep<md_nsteps)
         istep = istep +1
 
-    ! update position with velocity verlet
+    ! update position with velocity Verlet
     CALL velocity_verlet_position(positions_list(current,:,:), velocities(:,:),acceleration_list(current,:,:), &
                             positions_list(new,:,:))
 
-    
+    ! calculate the forces with new positions
     CALL get_energy_gradient(positions_list(current,:,:),tot_pot,forces, gradnorm, suppress_flag)
 
     ! Deposit a new gaussian bias potential every meta_tau fs
@@ -162,6 +171,7 @@ write(*,'(A)') repeat('-', 150)
         CALL deposit_bias_potential(meta_counter,cv_value,init_cv_value,bias_param,tot_bias_pot)
     end if
 
+    ! Calculate the bias potential and the forces contribution with the instantenous CV value
     if (meta_cv_type == "distance") then
         CALL distance_bias(bias_param,positions_list(current,:,:),tot_pot,forces,cv_value,step_bias_pot)
     elseif (meta_cv_type == "angle") then
@@ -179,6 +189,7 @@ write(*,'(A)') repeat('-', 150)
         !acceleration in Å/fs^2                    in kJ/mol/Å           in g/mol;
     end do
     
+    ! Update velocities with Velocity Verlet scheme
     CALL velocity_verlet_velocity(acceleration_list(current,:,:), acceleration_list(new,:,:), velocities(:,:))
 
     ! SCALE VELOCITIES TO ENSURE ZERO MOMENTUM OF THE CENTER OF MASS
@@ -207,7 +218,7 @@ write(*,'(A)') repeat('-', 150)
     call get_temperature(velocities, instant_temp, E_kin) ! use v(t)
     call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure) ! use x(t) and v(t)
 
-    ! Apply thermostat/barostat constraints
+    ! Apply thermostat/barostat constraints and compute again the properties
     if (md_ensemble == "NVT") then
         CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
         call get_temperature(velocities, instant_temp, E_kin) 
@@ -261,6 +272,7 @@ write(*,*) "Metadynamics succesfully completed"
 end subroutine
 
 subroutine deposit_bias_potential(meta_counter,cv_value,init_cv_value,bias_param,tot_bias_pot)
+! Subroutine to deposit additional Gaussian function to bias potential
 use definitions, only: wp
 use force_field_mod, only: n_atoms
 use parser_mod, only: meta_cv, meta_dT, meta_omega, meta_sigma, meta_nsteps, meta_tau 
@@ -295,6 +307,7 @@ init_cv_value = cv_value
 end subroutine
 
 function calc_cv(positions) result(cv_value)
+! Calculate the instaneous value of the CV
 use definitions, only: wp
 use force_field_mod, only: n_atoms, cross_product
 use parser_mod, only: meta_cv, meta_cv_type
@@ -344,6 +357,7 @@ end if
 end function
 
 subroutine distance_bias(bias_param,positions,tot_pot,forces,cv_value,bias_pot)
+! Compute the bias potential and the force contribution for the distance CV type
 use definitions, only: wp
 use force_field_mod, only: n_atoms
 use parser_mod, only: meta_cv, meta_nsteps, meta_cv_type, meta_sigma
@@ -357,27 +371,36 @@ real(kind=wp) :: distance(3), der_1(3), der_2(3)
 integer :: i
 bias_pot = 0
 
+! Distance CV
 distance = positions(meta_cv(2),:) - positions(meta_cv(1),:)
 cv_value = SQRT(dot_product(distance,distance))
 
+! iterate over the sum terms of the bias potential function
 do i=1, meta_nsteps
+    ! Bias potential calculation
     bias_pot =bias_pot + bias_param(i,1) * ( exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2))
 
+    ! Derivative over atomic coordinates of atom 1
     der_1= - bias_param(i,1) * ((cv_value - bias_param(i,2))/meta_sigma) * &
             exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2) * &
             (positions(meta_cv(2),:) - positions(meta_cv(1),:)) / cv_value
 
+    ! Derivative over atomic coordinates of atom 2
     der_2 = bias_param(i,1) * ((cv_value - bias_param(i,2))/meta_sigma) * &
             exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2) * &
             (positions(meta_cv(2),:) - positions(meta_cv(1),:)) / cv_value
 
+    ! Update the forces with the bias contribution
     forces(meta_cv(1),:) = forces(meta_cv(1),:) + der_1
     forces(meta_cv(2),:) = forces(meta_cv(2),:) + der_2
 end do
+
+! Update the total potential with the bias contribution
 tot_pot = tot_pot + bias_pot
 end subroutine
 
 subroutine angle_bias(bias_param,positions,tot_pot,forces,cv_value,bias_pot)
+! Compute the bias potential and the force contribution for the angle CV type
 use definitions, only: wp, safeguard
 use force_field_mod, only: n_atoms
 use parser_mod, only: meta_cv, meta_nsteps, meta_cv_type, meta_sigma
@@ -399,26 +422,35 @@ d23_norm = SQRT(dot_product(d23,d23))
 ! Calculate the angle (in radians)
 cv_value = acos(dot_product(d12,d23) / (d12_norm * d23_norm))
 
+! iterate over the sum terms of the bias potential function
 do i=1, meta_nsteps
+    ! Bias potential calculation
     bias_pot = bias_pot + bias_param(i,1) * ( exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2))
 
+    ! Magnitude of the gradient
     der_magn = bias_param(i,1) * ((cv_value - bias_param(i,2))/meta_sigma) * &
             exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2)
 
+    ! Derivative over atomic coordinates of atom 1
     der_1 = - der_magn * (1 / ( sin(cv_value) * d12_norm + safeguard)) * &
                     ( cos(cv_value) * (d12 / d12_norm) - (d23 / d23_norm ))
 
+    ! Derivative over atomic coordinates of atom 3
     der_3 = - der_magn * (1 / ( sin(cv_value) * d23_norm + safeguard)) * &
                     (cos(cv_value) * (d23 / d23_norm) - (d12 / d12_norm))
 
+    ! Update the forces with the bias contribution                    
     forces(meta_cv(1),1:3) = forces(meta_cv(1),1:3) + der_1
     forces(meta_cv(2),1:3) = forces(meta_cv(2),1:3) - (der_1 + der_3)
     forces(meta_cv(3),1:3) = forces(meta_cv(3),1:3) + der_3
 end do
+
+! Update the total potential with the bias contribution
 tot_pot = tot_pot + bias_pot
 end subroutine
 
 subroutine dihedral_bias(bias_param,positions,tot_pot,forces,cv_value,bias_pot)
+! Compute the bias potential and the force contribution for the dihedral CV type
 use definitions, only: wp, safeguard
 use force_field_mod, only: n_atoms, cross_product
 use parser_mod, only: meta_cv, meta_nsteps, meta_cv_type, meta_sigma
@@ -459,30 +491,36 @@ elseif (ratio < -1) then
 else
     ratio = ratio
 endif
-! Calculate the dihedral angle
+! Calculate the dihedral angle for the CV
 cv_value = acos(ratio)
 
 ! Define A and B terms
 cap_A = (b / (a_norm * b_norm)) - ((cos(cv_value) * a) / (a_norm**2))
 cap_B = (a / (a_norm * b_norm)) - ((cos(cv_value) * b) / (b_norm**2 ))
 
+! iterate over the sum terms of the bias potential function
 do i=1, meta_nsteps
+    ! Bias potential calculation
     bias_pot = bias_pot + bias_param(i,1) * ( exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2))
 
+    ! Magnitude of the gradient
     der_magn = bias_param(i,1) * ((cv_value - bias_param(i,2))/meta_sigma) * &
             exp(-0.5*((cv_value-bias_param(i,2)) / meta_sigma)**2) 
 
+    ! Derivative over atomic coordinates
     der_1 = der_magn * (1/ (sin(cv_value) + safeguard)) * cross_product(cap_A,d23)
     der_4 = - der_magn * (1/ (sin(cv_value) + safeguard)) * cross_product(d23,cap_B)
     der_2 = - der_1 + (der_magn * (1/ (sin(cv_value) + safeguard)) * (cross_product(d12,cap_A) + cross_product(cap_B,d34)))
     der_3 = - der_4 - (der_magn * (1/ (sin(cv_value) + safeguard)) * (cross_product(cap_A,d12) + cross_product(cap_B,d34)))
 
+    ! Update the forces with the bias contribution 
     forces(meta_cv(1),1:3) = forces(meta_cv(1),1:3) + der_1
     forces(meta_cv(2),1:3) = forces(meta_cv(2),1:3) + der_2 
     forces(meta_cv(3),1:3) = forces(meta_cv(3),1:3) + der_3
     forces(meta_cv(4),1:3) = forces(meta_cv(4),1:3) + der_4
 end do
 
+! Update the total potential with the bias contribution
 tot_pot = tot_pot + bias_pot
 end subroutine
 

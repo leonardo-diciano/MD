@@ -1,3 +1,7 @@
+! Modules with integrator subroutines
+!
+! Authors: Lila Zapp and Leonardo Di Ciano (2025)
+
 module propagators
     contains
 
