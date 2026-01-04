@@ -28,7 +28,7 @@ end function
 
 subroutine force_field_calc(positions,tot_pot,forces, debug_flag, suppress_flag)
 
-use definitions, only: wp, pi, kcal_to_kJ, safeguard, md_pbc, pbc_debug
+use definitions, only: wp, pi, kcal_to_kJ, safeguard, md_pbc, pbc_debug, md_boxlength
 use print_mod, only: recprt,recprt3
 
 implicit none
@@ -42,7 +42,7 @@ real(kind=wp) :: d12(3), d23(3), d34(3), f_magnitude, epsilon, sigma, f1(3), f3(
          start_time, end_time
 integer :: i, j, k, row, a1, a2, a3, a4, pair(2),one_bond_list(n_bonds,2), two_bonds_list(n_angles,2)
 integer, allocatable :: dummy_pairs(:,:), non_bonded_pairs(:,:), three_bonds_list(:,:)
-real(kind=wp) :: a(3),b(3),a_norm,b_norm, dihedral, cap_A(3), cap_B(3), ratio
+real(kind=wp) :: a(3),b(3),a_norm,b_norm, dihedral, cap_A(3), cap_B(3), ratio, lj_cutoff
 logical :: is_bonded
 
 
@@ -112,8 +112,7 @@ end do
 if (.not. suppress_flag) then
     ! Printing final summary of bonds contributions
     if (n_bonds > 0) then
-        write(*,*) ""
-        write(*,*) "Bonds contribution to potential energy: ", bond_pot, "kJ/mol"
+        write(*,"(/A60,F22.10,A)") "Bonds contribution to potential energy: ", bond_pot, " kJ/mol"
 
         if (debug_flag .and. n_bonds > 0 ) then
             write(*,*) ""
@@ -192,8 +191,7 @@ end do
 ! Printing final summary of angles contributions
 if (.not. suppress_flag) then
     if (n_angles > 0) then
-        write(*,*) ""
-        write(*,*) "Angles contribution to potential energy: ", angle_pot, "kJ/mol"
+        write(*,"(/A60,F22.10,A)") "Angles contribution to potential energy: ", angle_pot, " kJ/mol"
 
         if (debug_flag) then
             write(*,*) ""
@@ -326,8 +324,7 @@ end do
 ! Printing final summary of dihedrals contributions
 if (.not. suppress_flag) then
     if ((n_torsions > 0)) then
-        write(*,*) ""
-        write(*,*) "Dihedrals contribution to potential energy: ", die_pot, "kJ/mol"
+        write(*,"(/A60,F22.10,A)") "Dihedrals contribution to potential energy: ", die_pot, " kJ/mol"
 
         if (debug_flag ) then
             write(*,*) ""
@@ -456,8 +453,7 @@ end do
 ! Printing final summary of improper dihedrals contributions
 if (.not. suppress_flag) then
     if (n_impdie > 0) then
-        write(*,*) ""
-        write(*,*) "Improper dihedrals contribution to potential energy: ", imp_die_pot, "kJ/mol"
+        write(*,"(/A60,F22.10,A)") "Improper dihedrals contribution to potential energy: ", imp_die_pot, " kJ/mol"
 
         if (debug_flag ) then
             write(*,*) ""
@@ -469,6 +465,10 @@ if (.not. suppress_flag) then
     end if
 end if
 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! NON-BONDED TERMS
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Create list of atoms for non-bonded interactions (>3 bonds distance)
 k=1
 if (n_atoms > 4) then
@@ -528,7 +528,9 @@ elseif (k == 1 ) then   ! safeguard to skip non-bonded terms calculation when 0 
 end if
 
 
-!LJ term (> 1-4 interactions)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! LENNARD JONES TERMS (> 1-4 interactions)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 if (debug_flag .and. (size(non_bonded_pairs,dim=1) > 0)) then
     write(*,*) ""
@@ -544,9 +546,17 @@ do i=1, size(non_bonded_pairs,dim=1), 1      ! Iterate over the number of non-bo
     a2 = non_bonded_pairs(i,2)
 
     ! Calculate the distance between the atoms
-    distance = SQRT(dot_product(positions(a2,1:3)-positions(a1,1:3),positions(a2,1:3)-positions(a1,1:3)))
+    if (md_pbc) then
+        CALL get_min_image_dist_vector(positions(a2,:),positions(a1,:),d12)
+        lj_cutoff = 0.5 * md_boxlength
+    else
+        d12 = positions(a2,:)-positions(a1,:)
+        lj_cutoff = 5 ! default cutoff without PBC is set to 10 Å
+    end if
 
-    if (distance < 10 ) then ! Using a cutoff radius of 10 Å
+    distance = SQRT(dot_product(d12,d12))
+
+    if (distance < lj_cutoff ) then
         ! Calculate the parameters following Lorentz/Berthelot mixing rules
                         ! epsilon a1       epsilon a2
         epsilon = SQRT(lj_params(a1,3) * lj_params(a2,3)) * kcal_to_kJ
@@ -557,8 +567,8 @@ do i=1, size(non_bonded_pairs,dim=1), 1      ! Iterate over the number of non-bo
         f_magnitude = 24 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )
 
         ! Calculate the force on each atom and update the force vector
-        forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
-        forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
+        forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( d12 / distance**2 )
+        forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( d12 / distance**2 )
 
         ! Calculate LJ contributions to potential energy
         pot = 4 * epsilon * ( (sigma / distance)**12 - (sigma / distance)**6 )
@@ -579,8 +589,7 @@ end do
 ! Printing final summary of LJ contributions
 if (.not. suppress_flag) then
     if (size(non_bonded_pairs,dim=1) > 0) then
-        write(*,*) ""
-        write(*,*) "LJ contribution to potential energy: ", lj_pot, "kJ/mol"
+        write(*,"(/A60,F22.10,A)") "LJ contribution to potential energy: ", lj_pot, " kJ/mol"
 
         if (debug_flag) then
                 write(*,*) ""
@@ -592,7 +601,9 @@ if (.not. suppress_flag) then
     end if
 end if
 
-!Coulomb term
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! COULOMB TERMS
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 if (debug_flag .and. (size(non_bonded_pairs,dim=1) > 0)) then
     write(*,*) ""
@@ -608,15 +619,21 @@ do i=1, size(non_bonded_pairs,dim=1), 1
     a2=non_bonded_pairs(i,2)
 
     ! Calculate the distance between the atoms
-    distance = SQRT(dot_product(positions(a1,1:3)-positions(a2,1:3),positions(a1,1:3)-positions(a2,1:3)))
+    if (md_pbc) then
+        CALL get_min_image_dist_vector(positions(a2,:),positions(a1,:),d12)
+    else
+        d12 = positions(a2,:)-positions(a1,:)
+    end if
+
+    distance = SQRT(dot_product(d12,d12))
 
     ! Calculate the force magnitude
                 !       charge on a1        charge on a2
     f_magnitude =  ((resp_charges(a1,2) * resp_charges(a2,2) * charge_to_kJ_mol ) / (distance**2))
 
     ! Calculate the force on each atom and update the force vector
-    forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
-    forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
+    forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( d12 / distance)
+    forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( d12 / distance)
 
     ! Calculate Coulombic contributions to the potential energy
     pot = (resp_charges(a1,2) * resp_charges(a2,2) *  charge_to_kJ_mol ) / ( distance)
@@ -633,8 +650,7 @@ end do
 ! Printing final summary of Coulombic contributions
 if (.not. suppress_flag) then
     if  (size(non_bonded_pairs,dim=1) > 0) then
-        write(*,*) ""
-        write(*,*) "Coulombic interaction contribution to potential energy: ", coulomb_pot, "kJ/mol"
+        write(*,"(/A60,F22.10,A)") "Coulombic interaction contribution to potential energy: ", coulomb_pot, " kJ/mol"
 
         if (debug_flag) then
             write(*,*) ""
@@ -647,7 +663,9 @@ if (.not. suppress_flag) then
 end if
 
 
-! 1 - 4 interactions term
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! 1-4 INTERACTION TERMS
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 if (debug_flag .and. size(three_bonds_list,dim=1) > 0) then
     write(*,*) ""
@@ -664,7 +682,13 @@ do i=1, size(three_bonds_list,dim=1) , 1
     a2=three_bonds_list(i,2)
 
     ! Calculate the distance between the atoms
-    distance = SQRT(dot_product(positions(a2,1:3)-positions(a1,1:3),positions(a2,1:3)-positions(a1,1:3)))
+    if (md_pbc) then
+        CALL get_min_image_dist_vector(positions(a2,:),positions(a1,:),d12)
+    else
+        d12 = positions(a2,:)-positions(a1,:)
+    end if
+
+    distance = SQRT(dot_product(d12,d12))
 
     ! LJ term  (scaled down by 2)
 
@@ -678,8 +702,8 @@ do i=1, size(three_bonds_list,dim=1) , 1
     f_magnitude = 12 * epsilon * ( 2 * (sigma / distance)**12 - (sigma / distance)**6 )
 
     ! Calculate the force on each atom and update the force vector
-    forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
-    forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance**2 )
+    forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( d12/ distance**2 )
+    forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( d12 / distance**2 )
 
     ! Calculate LJ part of 1-4 interaction contributions to potential energy
     pot = 2 * epsilon * ( (sigma / distance)**12 - (sigma / distance)**6 )
@@ -692,8 +716,8 @@ do i=1, size(three_bonds_list,dim=1) , 1
     f_magnitude =  ((resp_charges(a1,2) * resp_charges(a2,2) * charge_to_kJ_mol ) / ( distance**2))  / 1.2
 
     ! Calculate the force on each atom and update the force vector
-    forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
-    forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( (positions(a2,1:3) - positions(a1,1:3)) / distance)
+    forces(a1,1:3) = forces(a1,1:3) - f_magnitude * ( d12 / distance)
+    forces(a2,1:3) = forces(a2,1:3) + f_magnitude * ( d12 / distance)
 
     ! Calculate Coulombic part of 1-4 interaction contributions to potential energy
     pot = ((resp_charges(a1,2) * resp_charges(a2,2) *  charge_to_kJ_mol ) / ( distance)) / 1.2
@@ -713,8 +737,7 @@ end do
 
 if (.not. suppress_flag) then
     if (size(three_bonds_list,dim=1) > 0) then
-        write(*,*) ""
-        write(*,*) "1-4 interactions contribution to potential energy: ", pot_14, "kJ/mol"
+        write(*,"(/A60,F22.10,A)") "1-4 interactions contribution to potential energy: ", pot_14, " kJ/mol"
 
         if (debug_flag) then
             write(*,*) ""
