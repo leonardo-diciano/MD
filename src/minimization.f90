@@ -6,11 +6,12 @@ module minimization_mod
 contains
 
     subroutine minimization(positions,tot_pot,forces, xyzfile,opt_method)
-        use definitions, only: wp
+        use definitions, only: wp, md_pbc
         use print_mod, only: recprt,recprt2,recprt3
         use force_field_mod, only: get_energy_gradient, n_atoms
         use lin_alg, only: mat_norm, displacement_vec
         use parser_mod, only: atomnames, min_max_iter, min_etol, min_ftol,min_alpha, min_debug
+        use pbc_mod, only: pbc_ctrl_positions
 
         implicit none
         integer, intent(in) :: opt_method
@@ -46,6 +47,9 @@ contains
         end if
 
         input_positions(:,:) = positions(:,:)
+
+        ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+        if (md_pbc) then; call pbc_ctrl_positions(positions(:,:)); end if
 
         call get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag = .true.)
         forces_previous = forces(:,:)
@@ -134,6 +138,9 @@ contains
 
             ! Perform the step along the gradient vector
             positions(:,:) = positions(:,:) + best_step * search_dir(:,:)
+
+            ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+            if (md_pbc) then; call pbc_ctrl_positions(positions(:,:)); end if
 
             ! save previous values to track progress and convergence
             gradnorm_previous = gradnorm

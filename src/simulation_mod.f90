@@ -81,9 +81,7 @@ subroutine simulation_verlet(positions,xyzfile)
     new = 3
 
     ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
-    if (md_pbc) then
-        call pbc_ctrl_positions(positions(:,:))
-    end if
+    if (md_pbc) then; call pbc_ctrl_positions(positions(:,:)); end if
 
     ! INITIALIZATION
     istep = 0
@@ -106,6 +104,9 @@ subroutine simulation_verlet(positions,xyzfile)
     write(97,"(A10,7(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)", "K", "Pa", "gÅ/fs"
 
     positions_list(previous,:,:) = positions(:,:) - velocities(:,:) * md_ts
+
+    ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+    if (md_pbc) then; call pbc_ctrl_positions(positions_list(previous,:,:)); end if
 
     if (md_debug) then
         call recprt2("forces",atomnames,forces,n_atoms)
@@ -148,7 +149,7 @@ subroutine simulation_verlet(positions,xyzfile)
         call Verlet(positions_list(previous,:,:),positions_list(current,:,:),acceleration(:,:), &
                             positions_list(new,:,:), velocities(:,:)) ! get x(t+1) and v(t)
 
-        ! SCALE VELOCITIES TO ENSURE ZERO MOMENTUM OF THE CENTER OF MASS
+        ! IF WANTED: SCALE VELOCITIES TO ENSURE ZERO MOMENTUM OF THE CENTER OF MASS
         call get_tot_momentum(velocities, tot_momentum)
         tot_momentum_norm = 0
         do icartesian = 1,3

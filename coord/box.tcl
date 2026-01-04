@@ -2,11 +2,11 @@
 package require pbctools
 
 # Set periodic box dimensions: a b c alpha beta gamma
-pbc set {40 40 40 90 90 90}
+pbc set {10 10 10 90 90 90}
 
 # Draw the periodic boundary condition box
 #pbc box -center origin -color black -width 2
-pbc box
+pbc box -center origin
 
 # Set atom representation to VDW spheres
 mol delrep 0 top

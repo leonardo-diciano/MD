@@ -2,19 +2,35 @@ module propagators
     contains
 
     subroutine Verlet(positions_previous,positions_current,acceleration, positions_new, velocities)
-        use definitions, only: wp
+        use definitions, only: wp, md_pbc
         use parser_mod, only: md_ts
-        use force_field_mod, only: n_atoms
+        use force_field_mod, only: n_atoms, get_min_image_dist_vector
+        use pbc_mod, only: pbc_ctrl_positions
 
         implicit none
         real(kind=wp), intent(in) :: positions_previous(n_atoms,3), positions_current(n_atoms,3),acceleration(n_atoms,3)
         real(kind=wp), intent(out) :: positions_new(n_atoms,3), velocities(n_atoms,3)
 
+        real(kind=wp) :: mic_diff_vect(3)
+        integer :: iatom
+
         ! UPDATE POSITIONS
         positions_new(:,:) = 2 * positions_current(:,:) - positions_previous(:,:) + md_ts**2 * acceleration(:,:) !x(t+1)
 
+        ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+        if (md_pbc) then; call pbc_ctrl_positions(positions_new(:,:)); end if
+
+
         !UPDATE VELOCITIES
-        velocities(:,:) = (positions_new(:,:) - positions_previous(:,:))/(2*md_ts) !v(t)
+        if (md_pbc) then
+            do iatom = 1, n_atoms
+                CALL get_min_image_dist_vector(positions_new(iatom,:),  positions_previous(iatom,:), mic_diff_vect)
+                velocities(iatom,:) = mic_diff_vect / (2*md_ts)
+            end do
+        else
+            velocities(:,:) = (positions_new(:,:) - positions_previous(:,:))/(2*md_ts) !v(t)
+        end if
+
     end subroutine Verlet
 
     subroutine velocity_verlet_position(positions_current, velocities, acceleration, positions_new)

@@ -551,7 +551,7 @@ do i=1, size(non_bonded_pairs,dim=1), 1      ! Iterate over the number of non-bo
         lj_cutoff = 0.5 * md_boxlength
     else
         d12 = positions(a2,:)-positions(a1,:)
-        lj_cutoff = 5 ! default cutoff without PBC is set to 10 Å
+        lj_cutoff = 10 ! default cutoff without PBC is set to 10 Å
     end if
 
     distance = SQRT(dot_product(d12,d12))

@@ -1,14 +1,10 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import sys
-from scipy.stats import gaussian_kde
 
 track_e_tot, track_e_kin, track_e_pot, track_f_norm,track_temp,track_pressure, savefigs, helpmode, track_com_mom, track_bias, track_metaG = False,False,False,False,False,False,False,False,False,False, False
 
 for flag in sys.argv:
     if flag == "-h":
         helpmode = True
-        print("This script requires numpy and matplotlib")
         print("usage: python3 plot.py [-h] 'properties_file' [-energies] [-e_temp] [...] [-savefig]")
         print("\nyou may use different flags to track different properties:")
         print("     -e_tot          plot the total energy")
@@ -47,6 +43,12 @@ for flag in sys.argv:
         track_e_pot = True
     if flag == "-savefig":
         savefigs = True
+
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import gaussian_kde
 
 def fes_reweight(cv, bias, temperature, gamma, nbins=500, discard=0.1):
     kB = 8.314462618e-3

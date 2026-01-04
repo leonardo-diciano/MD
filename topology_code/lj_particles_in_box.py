@@ -13,12 +13,12 @@ else:
 helpmode = False
 
 #input paramters
-n_atoms = 1000
+n_atoms = 100
 atomtype_short = "Ar"
 atomtype_long = "Ar"
 weight = 40
-boxlength = 40
-sigma = 0.03405 #Å
+boxlength = 10
+sigma = 3.405 #Å
 eps = 0.996/4.184 #kcal/mol
 
 
