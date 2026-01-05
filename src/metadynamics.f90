@@ -137,7 +137,8 @@ end do
 dot = index(xyzfile, ".", back=.true.)     ! find last "." in xyzfile name
 properties_outfile = xyzfile(:dot-1) // ".properties.txt"
 open(34, file=properties_outfile, status='replace', action='write')
-write(34,"(A10,10(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure", "COM_momentum", "CV_value", "Inst_Bias" , "Tot_Bias"
+write(34,"(A10,10(A20))") "istep", "E_tot", "E_kin","E_pot", "F_norm", "Temp", "Pressure", "COM_momentum", "CV_value", &
+                        "Inst_Bias" , "Tot_Bias"
 write(34,"(A10,10(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "kJ/(Åmol)", "K", "Pa", "gÅ/fs", " ","kJ/mol","kJ/mol"
 
 ! PREPARE TRAJECTORY FILE: traj_xyzfile
