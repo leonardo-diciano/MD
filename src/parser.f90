@@ -276,6 +276,8 @@ subroutine parser_input(inputfile,xyzfile, topofile, t_present, c_present, m_pre
          p_present, meta_present)
 ! Subroutine to parse input files 
 
+use definitions, only: wp, md_boxlength, md_pbc, pbc_debug
+
 character(len=256), intent(in) :: inputfile
 character(len=256), intent(out) :: xyzfile, topofile
 logical, intent(inout) :: t_present, c_present, m_present, m1_present,p_present, meta_present
@@ -315,15 +317,18 @@ do
             md_debug = .false.
             min_debug = .false.
             debug_print_all_matrices = .false.
+            pbc_debug = .false.
         elseif (dummy_idx == 1) then
             debug_flag = .true.
             md_debug = .true.
             min_debug = .true.
+            pbc_debug = .false.
         elseif (dummy_idx > 1) then
             debug_flag = .true.
             md_debug = .true.
             min_debug = .true.
             debug_print_all_matrices = .true.
+            pbc_debug = .true.
         end if
     end if
 
@@ -380,8 +385,9 @@ do
             if (dummy_symb == "true") then
                 md_fix_com_mom = .true.
             endif
-        elseif (index(trim(line),"debug") == 1) then
-            md_debug = .true.
+        elseif (index(trim(line),"pbc") == 1) then
+            read(line,*) dummy_symb, md_boxlength
+            md_pbc = .true.
         elseif (index(trim(line),"berendsen_tau") == 1) then
             read(line,*) dummy_symb, ber_tau
         elseif (index(trim(line),"berendsen_k") == 1) then

@@ -1,5 +1,6 @@
 ! module contains subroutine to make particles re-enter the box from the opposite side after leaving it
 ! the minimum image condition is enforced by the subroutine "get_min_image_dist_vector" found in the force_field_mod
+! Author: Lila Zapp (2026)
 
 module pbc_mod
 contains

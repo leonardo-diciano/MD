@@ -8,7 +8,7 @@ module simulation_mod
 contains
 
 subroutine simulation(positions,xyzfile)
-    use definitions, only: wp, md_pbc
+    use definitions, only: wp, md_pbc, md_boxlength
     use force_field_mod, only: n_atoms
     use parser_mod, only: md_int, md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_temp, md_press,&
                         bus_tau, ber_k, ber_tau
@@ -43,7 +43,10 @@ subroutine simulation(positions,xyzfile)
         write(*,"(A40,2X,A5)") "  MD fix COM momentum: ", "False"
     end if
     if (md_pbc) then
-        write(*,"(A40)") "Periodic Boundary Conditions: True"
+        write(*,"(A35,2X,A4)") "  MD Periodic Boundary Conditions: ", "True"
+        write(*,"(A23,F10.3)") "  MD cubic box length: ", md_boxlength
+    else
+        write(*,"(A35,2X,A5)") "  MD Periodic Boundary Conditions: ", "False"
     end if
     write(*,*) " "
     write(*,*) "Starting the molecular dynamics run"
@@ -270,7 +273,7 @@ end subroutine simulation_verlet
 
 
 subroutine simulation_vel_verlet(positions,xyzfile)
-    use definitions, only: wp, avogad
+    use definitions, only: wp, avogad, md_pbc
     use print_mod, only: recprt2, recprt3
     use lin_alg, only: displacement_vec
     use force_field_mod, only: get_energy_gradient, n_atoms, mweights
@@ -279,7 +282,8 @@ subroutine simulation_vel_verlet(positions,xyzfile)
     use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
     use ensemble_mod, only: berendsen_barostat, bussi_thermostat
     use propagators, only: velocity_verlet_position, velocity_verlet_velocity
-
+    use pbc_mod, only: pbc_ctrl_positions
+    
     implicit none
 
     real(kind=wp),intent(inout) :: positions(n_atoms,3)
@@ -297,6 +301,9 @@ subroutine simulation_vel_verlet(positions,xyzfile)
     ! for intuitive storing of position data (since Verlet requires storing previous positions)
     current = 1
     new = 2
+
+    ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+    if (md_pbc) then; call pbc_ctrl_positions(positions(:,:)); end if
 
     ! INITIALIZATION
     istep = 0
@@ -397,6 +404,11 @@ subroutine simulation_vel_verlet(positions,xyzfile)
            CALL berendsen_barostat(positions_list(current,:,:),pressure)
            call get_temperature(velocities, instant_temp, E_kin)
            call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
+        end if
+
+        ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+        if (md_pbc) then
+            call pbc_ctrl_positions(positions_list(new,:,:))
         end if
 
         ! WRITE QUANTITIES FILE

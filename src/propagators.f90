@@ -38,7 +38,8 @@ module propagators
     end subroutine Verlet
 
     subroutine velocity_verlet_position(positions_current, velocities, acceleration, positions_new)
-        use definitions, only: wp
+        use definitions, only: wp, md_pbc
+        use pbc_mod, only: pbc_ctrl_positions
         use parser_mod, only: md_ts
         use force_field_mod, only: n_atoms
 
@@ -49,6 +50,8 @@ module propagators
         ! UPDATE POSITIONS
         positions_new(:,:) = positions_current(:,:)+ md_ts * velocities(:,:) + md_ts**2 * acceleration(:,:)
 
+        ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+        if (md_pbc) then; call pbc_ctrl_positions(positions_new(:,:)); end if
     end subroutine
 
     subroutine velocity_verlet_velocity(old_acceleration, new_acceleration, velocities)

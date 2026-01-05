@@ -155,7 +155,7 @@ subroutine get_temperature(velocities, instant_temp, E_kin)
 end subroutine get_temperature
 
 subroutine get_pressure(positions, forces,instant_temp, pressure)
-    use definitions, only: wp, boltzmann, avogad, md_boxlength
+    use definitions, only: wp, boltzmann, avogad, md_boxlength, md_pbc
     use force_field_mod, only: n_atoms
 
     implicit none

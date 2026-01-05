@@ -9,7 +9,7 @@ integer,parameter :: wp = 8
 
 ! FOR PERIODIC BOUNDARY CONDITIONS
 public :: md_pbc, pbc_debug, md_boxlength
-logical :: md_pbc = .true., pbc_debug = .false.
+logical :: md_pbc = .false., pbc_debug = .false.
 real(kind=wp) :: md_boxlength = 10
 
 ! scientific constants

@@ -12,7 +12,7 @@ contains
 
 subroutine run_metadynamics(positions,xyzfile)
 ! The subroutine handles the initialization of a metadynamics simulation
-use definitions, only: wp
+use definitions, only: wp, md_pbc, md_boxlength
 use force_field_mod, only: n_atoms
 use parser_mod, only: meta_cv, meta_tau, meta_nsteps, meta_cv_type, meta_dT, meta_omega, meta_sigma, &
                      md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_temp, md_press, bus_tau, ber_k,&
@@ -57,6 +57,12 @@ if (md_fix_com_mom) then
 else
     write(*,"(A23,2X,A5)") "  MD fix COM momentum: ", "False"
 end if
+if (md_pbc) then
+    write(*,"(A35,2X,A4)") "  MD Periodic Boundary Conditions: ", "True"
+    write(*,"(A23,F10.3)") "  MD cubic box length: ", md_boxlength
+else
+    write(*,"(A35,2X,A5)") "  MD Periodic Boundary Conditions: ", "False"
+end if
 write(*,"(A19,A8,2X,4(I4,2X))") "  Metadynamics CV: ", meta_cv_type, meta_cv(:)
 write(*,"(A32,I10)") "  Metadynamics number of steps: ", meta_nsteps
 write(*,"(A31,F10.3,A3)") "  Metadynamics timestep (tau): ", meta_tau, " fs"
@@ -73,7 +79,7 @@ end subroutine
 
 subroutine metadynamics_propagation(positions,xyzfile)
 ! Well-Tempered metadynamics with velocity Verlet integration scheme
-use definitions, only: wp, avogad
+use definitions, only: wp, avogad, md_pbc
 use print_mod, only: recprt2, recprt3
 use lin_alg, only: displacement_vec
 use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
@@ -82,6 +88,7 @@ use force_field_mod, only: get_energy_gradient, mweights, n_atoms
 use parser_mod, only: atomnames, meta_cv, meta_tau, meta_nsteps, meta_cv_type, &
                 md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_debug, md_temp, md_press
 use propagators, only: velocity_verlet_position, velocity_verlet_velocity
+use pbc_mod, only: pbc_ctrl_positions
 
 implicit none
 real(kind=wp),intent(inout) :: positions(n_atoms,3)
@@ -99,6 +106,9 @@ logical :: suppress_flag = .true., debug_print_all_matrices = .false.
 ! for intuitive storing of position data 
 current = 1
 new = 2
+
+! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+if (md_pbc) then; call pbc_ctrl_positions(positions(:,:)); end if
 
 ! INITIALIZATION
 istep = 0
@@ -162,6 +172,12 @@ write(*,'(A)') repeat('-', 150)
     CALL velocity_verlet_position(positions_list(current,:,:), velocities(:,:),acceleration_list(current,:,:), &
                             positions_list(new,:,:))
 
+    
+    ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+    if (md_pbc) then
+        call pbc_ctrl_positions(positions_list(new,:,:))
+    end if
+    
     ! calculate the forces with new positions
     CALL get_energy_gradient(positions_list(current,:,:),tot_pot,forces, gradnorm, suppress_flag)
 
