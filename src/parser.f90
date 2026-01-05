@@ -284,7 +284,7 @@ logical, intent(inout) :: t_present, c_present, m_present, m1_present,p_present,
 integer :: io, dummy_idx
 logical :: mini_block = .false., md_block = .false., meta_block = .false.
 character(len=256) :: line
-character(len=32) :: dummy_symb
+character(len=32) :: dummy_symb, dummy_symb2
 
 
 open(unit=12,file=inputfile,status='old',access='sequential',action='read')
@@ -354,16 +354,21 @@ do
     end if
 
     if (mini_block) then
-        if (index(trim(line),"conj_grad") == 1) then
-            m_present = .true.
-        elseif (index(trim(line),"steep_desc") == 1) then
-            m1_present = .true.
+        if (index(trim(line),"method") == 1) then
+            read(line,*) dummy_symb, dummy_symb2
+            if (trim(dummy_symb2) == "cg") then
+                m_present = .true.
+            elseif (trim(dummy_symb2) == "sd") then
+                m1_present = .true.
         elseif (index(trim(line), "etol") == 1) then
             read(line,*) dummy_symb, min_etol
         elseif (index(trim(line),"ftol") == 1) then
             read(line,*) dummy_symb, min_ftol
         elseif (index(trim(line),"maxiter") == 1) then
             read(line,*) dummy_symb, min_max_iter
+        elseif (index(trim(line),"alpha") == 1) then
+            read(line,*) dummy_symb, min_alpha
+        endif
         endif
     end if
 
@@ -381,8 +386,8 @@ do
         elseif (index(trim(line),"press") == 1) then
             read(line,*) dummy_symb, md_press
         elseif (index(trim(line),"fix_com") == 1) then
-            read(line,*) dummy_symb, dummy_symb
-            if (dummy_symb == "true") then
+            read(line,*) dummy_symb, dummy_symb2
+            if (dummy_symb2 == "true") then
                 md_fix_com_mom = .true.
             endif
         elseif (index(trim(line),"pbc") == 1) then
