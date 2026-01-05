@@ -56,16 +56,12 @@ subroutine F_tot_norm(forces,norm,n_atoms)
 end subroutine F_tot_norm
 
 
-subroutine displacement_vec(pos1,pos2, displacement,n_atoms,atomnames)
+subroutine displacement_vec(pos1,pos2, displacement, n_atoms)
 use definitions, only: wp
-!use force_field_mod, only: n_atoms
-!use parser_mod, only: atomnames
-
 implicit none
 real(kind=wp),intent(in) :: pos1(n_atoms,3), pos2(n_atoms,3)
 real(kind=wp), intent(out) ::  displacement(n_atoms)
 integer, intent(in) :: n_atoms
-character(len=2), intent(in), allocatable :: atomnames(:)
 integer :: icartesian
 real(kind=wp) :: diff(n_atoms,3)
 

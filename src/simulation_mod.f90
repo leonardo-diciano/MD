@@ -8,10 +8,10 @@ module simulation_mod
 contains
 
 subroutine simulation(positions,xyzfile)
-    use definitions, only: wp
+    use definitions, only: wp, md_pbc
     use force_field_mod, only: n_atoms
     use parser_mod, only: md_int, md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_temp, md_press,&
-                        bus_tau, ber_k, ber_tau 
+                        bus_tau, ber_k, ber_tau
     implicit none
     real(kind=wp),intent(inout) :: positions(n_atoms,3)
     character(len=256), intent(in) :: xyzfile
@@ -21,26 +21,29 @@ subroutine simulation(positions,xyzfile)
     write(*,*) "MOLECULAR DYNAMICS module"
     write(*,*)
     write(*,*) "Settings:"
-    write(*,"(A22,I5)") "  MD number of steps: ", md_nsteps
-    write(*,"(A17,2X,A18)") "  MD integrator: ", md_int
-    write(*,"(A15,F10.3,A3)") "  MD timestep: ", md_ts, " fs"
-    write(*,"(A15,A3)") "  MD ensemble: ", md_ensemble
-    write(*,"(A18,F10.3,A2)") "  MD temperature: ", md_temp, " K"
-    write(*,"(A15,F10.3,A3)") "  MD pressure: ", md_press, " Pa"
+    write(*,"(A40,I5)") "  MD number of steps: ", md_nsteps
+    write(*,"(A40,2X,A18)") "  MD integrator: ", md_int
+    write(*,"(A40,F10.3,A3)") "  MD timestep: ", md_ts, " fs"
+    write(*,"(A40,A3)") "  MD ensemble: ", md_ensemble
+    write(*,"(A40,F10.3,A2)") "  MD temperature: ", md_temp, " K"
+    write(*,"(A40,F10.3,A3)") "  MD pressure: ", md_press, " Pa"
     if (md_ensemble == "NVT") then
-        write(*,"(A20,A3)") "  Bussi thermostat: ", " ON"
-        write(*,"(A31,F10.3)") "    Bussi time constant (tau): ", bus_tau
+        write(*,"(A40,A3)") "  Bussi thermostat: ", " ON"
+        write(*,"(A40,F10.3)") "    Bussi time constant (tau): ", bus_tau
     elseif (md_ensemble == "NPT") then
-        write(*,"(A20,A3)") "  Bussi thermostat: ", " ON"
-        write(*,"(A31,F10.3)") "    Bussi time constant (tau): ", bus_tau
-        write(*,"(A22,A3)") "  Berendsen barostat: ", " ON"
-        write(*,"(A35,F10.3)") "    Berendsen time constant (tau): ", ber_tau
-        write(*,"(A28,F20.15)") "    Berendsen constant (k): ", ber_k
+        write(*,"(A40,A3)") "  Bussi thermostat: ", " ON"
+        write(*,"(A40,F10.3)") "    Bussi time constant (tau): ", bus_tau
+        write(*,"(A40,A3)") "  Berendsen barostat: ", " ON"
+        write(*,"(A40,F10.3)") "    Berendsen time constant (tau): ", ber_tau
+        write(*,"(A40,F20.15)") "    Berendsen constant (k): ", ber_k
     end if
     if (md_fix_com_mom) then
-        write(*,"(A23,2X,A4)") "  MD fix COM momentum: ", "True"
+        write(*,"(A40,2X,A4)") "  MD fix COM momentum: ", "True"
     else
-        write(*,"(A23,2X,A5)") "  MD fix COM momentum: ", "False"
+        write(*,"(A40,2X,A5)") "  MD fix COM momentum: ", "False"
+    end if
+    if (md_pbc) then
+        write(*,"(A40)") "Periodic Boundary Conditions: True"
     end if
     write(*,*) " "
     write(*,*) "Starting the molecular dynamics run"
@@ -55,7 +58,7 @@ subroutine simulation(positions,xyzfile)
 end subroutine simulation
 
 subroutine simulation_verlet(positions,xyzfile)
-    use definitions, only: wp, avogad
+    use definitions, only: wp, avogad, md_pbc
     use print_mod, only: recprt2, recprt3
     use lin_alg, only: displacement_vec
     use force_field_mod, only: get_energy_gradient, n_atoms, mweights
@@ -64,12 +67,12 @@ subroutine simulation_verlet(positions,xyzfile)
     use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
     use ensemble_mod, only: bussi_thermostat, berendsen_barostat
     use propagators, only: Verlet
+    use pbc_mod, only: pbc_ctrl_positions
 
     implicit none
 
     real(kind=wp),intent(inout) :: positions(n_atoms,3)
     character(len=256), intent(in) :: xyzfile
-
 
     real(kind=wp) :: displacement(n_atoms), positions_previous(n_atoms,3), input_positions(n_atoms,3), forces(n_atoms,3), &
                     acceleration(n_atoms,3), total_displacement(n_atoms), velocities(n_atoms,3)
@@ -83,6 +86,9 @@ subroutine simulation_verlet(positions,xyzfile)
     previous = 1
     current = 2
     new = 3
+
+    ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+    if (md_pbc) then; call pbc_ctrl_positions(positions(:,:)); end if
 
     ! INITIALIZATION
     istep = 0
@@ -106,8 +112,10 @@ subroutine simulation_verlet(positions,xyzfile)
 
     positions_list(previous,:,:) = positions(:,:) - velocities(:,:) * md_ts
 
+    ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+    if (md_pbc) then; call pbc_ctrl_positions(positions_list(previous,:,:)); end if
+
     if (md_debug) then
-        write(*,"(/A,/A,/A)") "In propagation","---------------------------------------","Initialization:"
         call recprt2("forces",atomnames,forces,n_atoms)
         write(*,"(A,*(/,F10.6))") "masses: [g/mol]", mweights
        call recprt2("acceleration = forces / masses",atomnames,acceleration,n_atoms)
@@ -123,13 +131,15 @@ subroutine simulation_verlet(positions,xyzfile)
         write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1:3)
     end do
 
-
     if (md_debug) then
         write(*,"(/A,I5)") "Initial quantities at step ",istep
         call recprt2("r(t-Δt)",atomnames,positions_list(previous,:,:),n_atoms)
         call recprt2("r(t)",atomnames,positions_list(current,:,:),n_atoms)
     end if
 
+    write(*,"(/A)") "... initialization done"
+    write(*,"(/A,/)") "... start taking steps"
+    write(*,*) "SUMMARY TABLE:"
     write(*,"(A10,5(A20))") "istep", "E_tot", "E_kin","E_pot","Temp", "Pressure"
     write(*,"(A10,5(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "K", "Pa"
     write(*,'(A)') repeat('-', 110)
@@ -144,7 +154,7 @@ subroutine simulation_verlet(positions,xyzfile)
         call Verlet(positions_list(previous,:,:),positions_list(current,:,:),acceleration(:,:), &
                             positions_list(new,:,:), velocities(:,:)) ! get x(t+1) and v(t)
 
-        ! SCALE VELOCITIES TO ENSURE ZERO MOMENTUM OF THE CENTER OF MASS
+        ! IF WANTED: SCALE VELOCITIES TO ENSURE ZERO MOMENTUM OF THE CENTER OF MASS
         call get_tot_momentum(velocities, tot_momentum)
         tot_momentum_norm = 0
         do icartesian = 1,3
@@ -165,7 +175,7 @@ subroutine simulation_verlet(positions,xyzfile)
                 end if
             end if
         end if
-        
+
 
         ! GET PROPERTIES
         call get_temperature(velocities, instant_temp, E_kin) ! use v(t)
@@ -174,18 +184,18 @@ subroutine simulation_verlet(positions,xyzfile)
         ! Apply thermostat/barostat constraints
         if (md_ensemble == "NVT") then
            CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
-           call get_temperature(velocities, instant_temp, E_kin) 
+           call get_temperature(velocities, instant_temp, E_kin)
            call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
         elseif (md_ensemble == "NPT") then
            CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
            CALL berendsen_barostat(positions_list(current,:,:),pressure)
-           call get_temperature(velocities, instant_temp, E_kin) 
+           call get_temperature(velocities, instant_temp, E_kin)
            call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
         end if
 
         ! WRITE QUANTITIES FILE
         ! this prints info from the previous step
-        write(97,"(I8,2x,7(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure, &
+        write(97,"(I8,2x,7(F18.8,2X))") istep-1,E_kin+tot_pot,E_kin,tot_pot, gradnorm, instant_temp, pressure, &
                                             tot_momentum_norm/avogad
         if (debug_print_all_matrices) then
             write(*,"(/A,I5)") "New quantities at step ",istep
@@ -196,7 +206,7 @@ subroutine simulation_verlet(positions,xyzfile)
         end if
 
         ! TRACK DISPLACEMENT OF THE ATOMS
-        call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),displacement,n_atoms,atomnames)
+        call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),displacement,n_atoms)
         total_displacement(:) = total_displacement(:) + displacement(:)
 
         ! WRITE TRAJECTORY FILE
@@ -207,12 +217,17 @@ subroutine simulation_verlet(positions,xyzfile)
         end do
 
         if (mod(istep,100) == 1) then
-        write(*,"(I8,2x,5(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
+        write(*,"(I8,2x,5(F18.8,2x))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
         end if
-    
+
         ! PREPARE NEXT STEP
         positions_list(previous,:,:) = positions_list(current,:,:)
         positions_list(current,:,:) = positions_list(new,:,:)
+
+        ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+        if (md_pbc) then
+            call pbc_ctrl_positions(positions_list(new,:,:))
+        end if
 
         ! CALCULATE NEW FORCES / ACCELERATION AT NEW POSITION
         call get_energy_gradient(positions_list(new,:,:),tot_pot,forces, gradnorm, suppress_flag)
@@ -224,15 +239,15 @@ subroutine simulation_verlet(positions,xyzfile)
     end do
 
     write(*,*) "last step"
-    write(*,"(I8,2x,5(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
+    write(*,"(I8,2x,5(F18.8,2X))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
     write(*,*) " "
-    write(*,*) "Molecular Dynamics succesfully completed"
+    write(*,*) "Molecular Dynamics successfully completed"
 
     displacement(:) = 0
 
     if (md_debug) then
         write(*,"(/A)") "Throughout the simulation, the atoms displaced: (no MSD, but initial vs final coords)"
-        call displacement_vec(positions_list(current,:,:),input_positions, displacement,n_atoms,atomnames)
+        call displacement_vec(positions_list(current,:,:),input_positions, displacement,n_atoms)
         write(*,*) "Displacements (summed all steps)"
         do i = 1, n_atoms
             write(*,"(I3,1x,A3,1x,  F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
@@ -244,7 +259,7 @@ subroutine simulation_verlet(positions,xyzfile)
         end do
     end if
 
-    
+
     write(*,"(/A,//A)") "================================================================","Simulation finished"
     write(*,"(/A,F10.2,A)") "Total simulation time", md_ts * istep, " fs"
     write(*,"(/A,A)") "Wrote properties to ", properties_outfile
@@ -291,7 +306,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
     acceleration_list(:,:,:) = 0
 
     call get_energy_gradient(positions_list(current,:,:),tot_pot,forces, gradnorm, suppress_flag) !F(t=0), E_pot(t=0)
-    
+
     call init_v(velocities(:,:)) !v(t=-1)
     do icartesian = 1,3
         acceleration_list(current,:,icartesian) = 1e-4 * forces(:,icartesian) / mweights(:)
@@ -337,7 +352,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         call velocity_verlet_position(positions_list(current,:,:), velocities(:,:),acceleration_list(current,:,:), &
                             positions_list(new,:,:))
 
-        ! CALCULATE NEW FORCES / ACCELERATION AT NEW POSITION and update velocities 
+        ! CALCULATE NEW FORCES / ACCELERATION AT NEW POSITION and update velocities
         call get_energy_gradient(positions_list(new,:,:),tot_pot,forces, gradnorm, suppress_flag)
         do icartesian = 1,3
             acceleration_list(new,:,icartesian) = 1e-4 * forces(:,icartesian) / mweights(:)
@@ -375,12 +390,12 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         ! Apply thermostat/barostat constraints
         if (md_ensemble == "NVT") then
            CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
-           call get_temperature(velocities, instant_temp, E_kin) 
+           call get_temperature(velocities, instant_temp, E_kin)
            call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
         elseif (md_ensemble == "NPT") then
            CALL bussi_thermostat(E_kin,(3*n_atoms)-3,velocities)
            CALL berendsen_barostat(positions_list(current,:,:),pressure)
-           call get_temperature(velocities, instant_temp, E_kin) 
+           call get_temperature(velocities, instant_temp, E_kin)
            call get_pressure(positions_list(current,:,:), forces,instant_temp, pressure)
         end if
 
@@ -391,13 +406,13 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         if (debug_print_all_matrices) then
             write(*,"(/A,I5)") "New quantities at step ",istep
             call recprt2("r(t) = positions_list(current,:,:) [Å]",atomnames,positions_list(current,:,:),n_atoms)
-            call recprt2("F(t) = forces(:,:) [kJ/mol]",atomnames,forces(:,:),n_atoms)
+            call recprt2("F(t) = forces(:,:) [kJ/(Åmol)]",atomnames,forces(:,:),n_atoms)
             call recprt2("a(t) = acceleration(:,:) [Å/(fs)^2]",atomnames,acceleration_list(new,:,:),n_atoms)
             call recprt2("v(t) = velocities(:,:) [Å/fs]",atomnames,velocities(:,:),n_atoms)
         end if
 
         ! TRACK DISPLACEMENT OF THE ATOMS
-        call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),displacement,n_atoms,atomnames)
+        call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),displacement,n_atoms)
         total_displacement(:) = total_displacement(:) + displacement(:)
 
         ! WRITE TRAJECTORY FILE
@@ -408,7 +423,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         end do
 
         if (mod(istep,100) == 1) then
-        write(*,"(I8,2x,5(F20.8))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
+            write(*,"(I8,2x,5(F22.8,2x))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
         end if
 
         ! PREPARE NEXT STEP
@@ -426,7 +441,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
 
     if (md_debug) then
         write(*,"(/A)") "Throughout the simulation, the atoms displaced: (no MSD, but initial vs final coords)"
-        call displacement_vec(positions_list(current,:,:),input_positions, displacement,n_atoms,atomnames)
+        call displacement_vec(positions_list(current,:,:),input_positions, displacement,n_atoms)
         write(*,*) "Displacements (summed all steps)"
         do i = 1, n_atoms
             write(*,"(I3,1x,A3,1x,  F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
@@ -438,7 +453,8 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         end do
     end if
 
-    write(*,"(/A,//A)") "================================================================","Simulation finished"
+    write(*,"(3(/A40))") "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!","!!   Simulation finished    !!",&
+                         "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     write(*,"(/A,F10.2,A)") "Total simulation time", md_ts * istep, " fs"
     write(*,"(/A,A)") "Wrote properties to ", properties_outfile
     write(*,"(A,A)") "Wrote trajectory to ", traj_xyzfile

@@ -1,23 +1,17 @@
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Subroutine that performs energy minimization of the structure stored in the "positions(n_atoms,3)" array
-! the algorithm employed here is a simple steepest descent
-! to find the optimal step size in the gradient direction, a line search is done by fitting a parabola
-! through the points P1,P2,P3. The points are defined using a constant alpha:
-!   P1 = positions; P2 = positions + 0.5 * alpha * grad; P3 = positions + min_alpha * grad
-!
 ! Author: Lila Zapp (2025)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 module minimization_mod
 
 contains
 
     subroutine minimization(positions,tot_pot,forces, xyzfile,opt_method)
-        use definitions, only: wp
+        use definitions, only: wp, md_pbc
         use print_mod, only: recprt,recprt2,recprt3
         use force_field_mod, only: get_energy_gradient, n_atoms
         use lin_alg, only: mat_norm, displacement_vec
         use parser_mod, only: atomnames, min_max_iter, min_etol, min_ftol,min_alpha, min_debug
+        use pbc_mod, only: pbc_ctrl_positions
 
         implicit none
         integer, intent(in) :: opt_method
@@ -26,8 +20,8 @@ contains
         real(kind=wp), intent(inout) :: forces(n_atoms,3),positions(n_atoms,3)
 
         real(kind=wp) :: forces_P1(n_atoms,3), forces_P2(n_atoms,3), forces_P3(n_atoms,3)
-        real(kind=wp), allocatable :: positions_P1(:,:),positions_P2(:,:),positions_P3(:,:)
-        real(kind=wp) :: input_positions(n_atoms,3), forces_previous(n_atoms,3), search_dir(n_atoms,3), &
+        real(kind=wp) :: positions_P1(n_atoms,3),positions_P2(n_atoms,3),positions_P3(n_atoms,3),&
+                        input_positions(n_atoms,3), forces_previous(n_atoms,3), search_dir(n_atoms,3), &
                         search_dir_previous(n_atoms,3)
         integer :: iter,i, dot, icartesian, iatom
         real(kind=wp) :: tot_pot_P1, tot_pot_P2, tot_pot_P3, gradnorm_P1, gradnorm_P2, gradnorm_P3, &
@@ -40,8 +34,10 @@ contains
 
         write(*,"(/A/A)") "Energy minimization:","-------------------"
         if (.not. min_debug) then
-            write(*,"(/A)") "iteration          U_tot              delta U            F_tot              delta F"
-            write(*,"(A)") "----------------------------------------------------------------------------------------"
+            write(*,"(/A)") "iteration                 U_tot              delta U                  F_tot                delta F"
+            write(*,"(/A)") "                          kJ/mol             kJ/mol                kJ/(Å mol)           kJ/(Å mol)"
+            write(*,"(A)") "----------------------------------------------------------------------------------------------------&
+                --------"
         else
             write(*,"(3(A,F10.8,2x),A)") "min_alpha = ", min_alpha, "Å;     0.5*min_alpha = ", 0.5*min_alpha, "Å"
             write(*,"(/A)") "iteration  U_tot (U_P1)  delta U   F_tot        delta F       &
@@ -52,6 +48,9 @@ contains
 
         input_positions(:,:) = positions(:,:)
 
+        ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+        if (md_pbc) then; call pbc_ctrl_positions(positions(:,:)); end if
+
         call get_energy_gradient(positions,tot_pot,forces, gradnorm, suppress_flag = .true.)
         forces_previous = forces(:,:)
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -60,15 +59,12 @@ contains
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         ! line search: calculate energy at three positions_Ps; first one is already done
-        allocate(positions_P1(n_atoms,3))
-        allocate(positions_P2(n_atoms,3))
-        allocate(positions_P3(n_atoms,3))
 
         iter = 0
 
         ! Print initial data into iteration table
         if (.not. min_debug) then
-            write(*,"(i5,10x,2(F16.8,13x,A,8x))") iter, tot_pot,"/" , gradnorm,"/"
+            write(*,"(i5,10x,2(F20.8,15x,A,10x))") iter, tot_pot,"/" , gradnorm,"/"
         else
             write(*,"(i5,2x,2(F12.6,8x,A,5x))") &
                 iter, tot_pot, "/", gradnorm,"/"
@@ -86,8 +82,9 @@ contains
             write(97,FMT='(A3,3(2X,F15.8))') atomnames(i), positions(i,1), positions(i,2),positions(i,3)
         end do
 
-
+        ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
         ! START ITERATING
+        ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
         do while (.not. converged)
             iter = iter + 1
 
@@ -142,15 +139,8 @@ contains
             ! Perform the step along the gradient vector
             positions(:,:) = positions(:,:) + best_step * search_dir(:,:)
 
-
-
-            ! uncomment this to see the displacements of all atoms (default: only max value is printed (max displacement))
-            !if (min_debug) then
-            !    call recprt2("Forces",atomnames,forces,n_atoms)
-            !    call recprt2("Step taken",atomnames,best_step*forces/gradnorm,n_atoms)
-            !    call mat_norm(forces/gradnorm, n_atoms,dummy_real)
-            !    write(*,*) "norm =", dummy_real !forces/gradnorm is a unit vector
-            !end if
+            ! IF PBC, THEN FORCE ALL ATOMS TO BE IN THE SAME CELL
+            if (md_pbc) then; call pbc_ctrl_positions(positions(:,:)); end if
 
             ! save previous values to track progress and convergence
             gradnorm_previous = gradnorm
@@ -164,9 +154,17 @@ contains
             CALL get_energy_gradient(positions,tot_pot,forces,gradnorm, suppress_flag = .true.)
 
 
-            ! Print iteration data
+            if (tot_pot-tot_pot_previous > 0) then
+                write(*,*) ""
+                write(*,*) "stopped before potential energy starts to increase again, otherwise the energy would "
+                write(*,"(A,F18.8,A)") "  increase about ", tot_pot-tot_pot_previous, " kJ/mol in the next step"
+                positions(:,:) = positions(:,:) - best_step * search_dir(:,:)
+                exit
+            end if
+
+            ! PRINT ITERATION DATA
             if (.not. min_debug) then
-                write(*,"(i5,10x,4(F18.8,3x))") iter, tot_pot, tot_pot-tot_pot_previous, gradnorm,&
+                write(*,"(i5,10x,4(F20.8,3x))") iter, tot_pot, tot_pot-tot_pot_previous, gradnorm,&
                                                 gradnorm-gradnorm_previous
             else
                 write(*,"(i5,2x,4(F12.6,1x),2(f7.1),A,2(F10.2,A),4x,F6.3,2x, F10.6)") &
@@ -184,7 +182,6 @@ contains
             end do
 
             ! Check for convergence
-            !if (ABS(gradnorm-gradnorm_previous)<conv_gradnorm .and. .not. converged_grad) then
             if (ABS(gradnorm-gradnorm_previous)<min_ftol .and. .not. converged_grad) then
                 write(*,*) "gradient converged"
                 converged_grad = .true.
@@ -205,10 +202,6 @@ contains
             end if
         end do
 
-        deallocate(positions_P1)
-        deallocate(positions_P2)
-        deallocate(positions_P3)
-
         ! Print convergence message
         write(*,"(/A)") "==================================================================="
         if (converged) then
@@ -218,7 +211,7 @@ contains
                 write(*,"(A,i4,A/)")"Gradient Descent converged in", iter," iterations"
             end if
         else
-            write(*,"(A/)") "WARNING: energy minimization did not converge in the max number of iterations"
+            write(*,"(A/)") "WARNING: energy minimization did not converge  "
         end if
 
         if (min_debug) then
@@ -228,15 +221,12 @@ contains
             call recprt2("Atomic coordinates AFTER minimization",atomnames(:),positions(:,:),n_atoms)
             call recprt2("Change in atomic coordinates THROUGH minimization",atomnames(:),&
                                                             positions(:,:)-input_positions(:,:),n_atoms)
+            call displacement_vec(input_positions,positions, displacement,n_atoms)
+            do i = 1, n_atoms
+                write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
+            end do
+            write(*,"(/A,F12.8,A)") "  sum = ", sum(displacement(:)), " Å"
         end if
-        call displacement_vec(input_positions,positions, displacement,n_atoms,atomnames)
-        write(*,*) "Displacements"
-        do i = 1, n_atoms
-            write(*,"(I3,1x,A3,1x,F16.12,1x,A)") i,atomnames(i),displacement(i),"Å"
-        end do
-        write(*,"(/A,F12.8,A)") "  sum = ", sum(displacement(:)), " Å"
-
-        write(*,*) "==================================================================="
 
         ! Writing the updated coordinates to an xyzfile
         dot = index(xyzfile, ".", back=.true.)     ! find last "." in xyzfile name
@@ -248,10 +238,12 @@ contains
             write(99,FMT='(A3,5X,F15.6,2X,F15.6,2X,F15.6)') atomnames(i), positions(i,1), positions(i,2),positions(i,3)
         end do
 
+        !CALL get_energy_gradient(positions,tot_pot,forces,gradnorm, suppress_flag = .false.)
 
-        write(*,*) "Wrote updated coordinates to ", minimized_xyzfile
-        write(*,*) "Wrote minimization trajectory to ", traj_xyzfile
+        write(*,"(/A,A)") "Wrote updated coordinates to ", minimized_xyzfile
+        write(*,"(A,A)") "Wrote minimization trajectory to ", traj_xyzfile
 
+        write(*,"(A)") "==================================================================="
 
     end subroutine minimization
 

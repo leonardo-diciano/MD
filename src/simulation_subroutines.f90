@@ -19,9 +19,7 @@ subroutine init_v(velocities)
     real(kind=wp) :: rand1,rand2, rand_gaussian, v_ix, v_atoms(n_atoms), tot_momentum(3)
     integer :: iatom, icartesian
 
-    if (md_debug) then
-        write(*,"(/A,/A)") "in init_v", "-------------------------------"
-    end if
+    write(*,"(/A)") "... initializing velocities"
 
     do iatom = 1,n_atoms
         do icartesian = 1, 3
@@ -32,7 +30,6 @@ subroutine init_v(velocities)
 
             !write(*,"(/,2(A,1x,F12.8,1x),A,F16.8)") "rand1 =",rand1, "rand2 =", rand2,"rand_gaussian = ",rand_gaussian
             !write(*,"(A,F16.4,A)") "v_ix = ", v_ix, " m/s"
-
             ! convert to Å/fs -> 1m/s = 10^10/10^15 Å/fs = 10^-5 Å/fs
 
             v_ix = 1e-5 * v_ix
@@ -42,20 +39,23 @@ subroutine init_v(velocities)
         end do
     end do
 
-    !call recprt3("v(t_0) = velocities(:,:) [Å/fs]",velocities(:,:),n_atoms)
-    !call get_v_atoms(v_atoms,velocities,n_atoms,.true.)
-
     ! THIS IS LIKELY NOT YET ZERO
     call get_tot_momentum(velocities,tot_momentum)
+
+    if (md_debug) then
+        write(*,"(/A,3(F10.6),A)") "Initial momentum of center of mass (probably not zero) = ", tot_momentum, " g*Å/(mol*fs)"
+    end if
 
     ! NOW WE RECALCULATE THE VELOCITIES TO MAKE THE TOTAL MOMENTUM ZERO (Leach, p.365)
     do icartesian = 1,3
         velocities(:,icartesian) = velocities(:,icartesian) - tot_momentum(icartesian) / SUM(mweights)
     end do
 
+    call get_tot_momentum(velocities, tot_momentum) !THIS SHOULD NOW BE ZERO
+
     if (md_debug) then
         write(*,"(/A)") "After adapting the velocities with respect to the momentum and mass:"
-        call get_tot_momentum(velocities, tot_momentum) !THIS SHOULD NOW BE ZERO
+        write(*,"(/A,3(F10.6),A)") "momentum of center of mass (should be zero from here on) = ", tot_momentum, " g*Å/(mol*fs)"
         call recprt3("v(t_0) = velocities(:,:) [Å/fs]",velocities(:,:),n_atoms)
     end if
     call get_v_atoms(v_atoms,velocities,md_debug)
@@ -65,7 +65,7 @@ subroutine init_v(velocities)
 subroutine get_v_atoms(v_atoms,velocities,printopt)
     use definitions, only: wp
     use force_field_mod, only: n_atoms
-    
+
     implicit none
     real(kind=wp),intent(out) :: v_atoms(n_atoms)
     logical, intent(in) :: printopt
@@ -100,7 +100,7 @@ subroutine get_tot_momentum(velocities, tot_momentum)
     use definitions, only: wp, proton_mass
     use parser_mod, only: md_debug
     use force_field_mod, only: n_atoms, mweights
-    
+
     implicit none
     real(kind=wp), intent(in) :: velocities(n_atoms,3)
     real(kind=wp), intent(out) :: tot_momentum(3)
@@ -132,7 +132,7 @@ subroutine get_E_kin(velocities, E_kin)
     do iatom = 1,n_atoms
         do icartesian = 1, 3
             E_kin = E_kin + 0.5 * 1e4 * mweights(iatom) * velocities(iatom,icartesian)**2
-            !kJ/mol                       !kg/mol               ! m^2/s^2
+            !kJ/mol              !conv        !g/mol                !Å^2/fs^2
         end do
     end do
 
@@ -158,7 +158,7 @@ subroutine get_pressure(positions, forces,instant_temp, pressure)
     use definitions, only: wp, boltzmann, avogad
     use parser_mod, only: md_boxlength, md_pbc
     use force_field_mod, only: n_atoms
-    
+
     implicit none
     real(kind=wp), intent(in) ::instant_temp, positions(n_atoms,3),forces(n_atoms,3)
     real(kind=wp), intent(out) :: pressure

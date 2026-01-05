@@ -1,15 +1,16 @@
 
 program MD
-use definitions, only: wp
+use definitions, only: wp, md_pbc, pbc_debug
 use f90getopt
 use header_mod, only: pine_tree, final_phrase
 use parser_mod, only: parser_top, parser_input, atomnames, debug_flag
-use force_field_mod, only: n_atoms,n_bonds,n_angles,n_torsions,n_impdie, bond_params, angle_params,& 
+use force_field_mod, only: n_atoms,n_bonds,n_angles,n_torsions,n_impdie, bond_params, angle_params,&
                     impdihedrals_params, tors_params,lj_params,resp_charges,mweights, force_field_calc
 use minimization_mod, only: minimization
-use pbc_mod, only: define_box
 use simulation_mod, only: simulation
 use metadynamics_mod, only: run_metadynamics
+use pbc_mod, only: pbc_ctrl_positions
+use print_mod, only: recprt3
 
 implicit none
 character(len=256) :: xyzfile, topofile, inputfile
@@ -19,7 +20,6 @@ real(kind=wp) :: start_time, end_time, tot_pot, gradnorm
 character(len=1) :: short
 logical :: t_present = .false. , c_present = .false., m_present = .false., m1_present =.false.,&
          p_present = .false., i_present = .false., suppress_flag = .true., meta_present = .false.
-
 ! Parse the command line arguments with f90getopt library
 
 ! Declaration of options
@@ -112,6 +112,12 @@ CALL pine_tree()
 
 CALL parser_top(xyzfile,topofile,positions,atomtypes,debug_flag)
 
+if (md_pbc) then
+    write(*,"(/A)") "PERIODIC BOUNDARY CONDITIONS ACTIVATED"
+    if (pbc_debug) then; call recprt3("Coordinates before PBC update",positions,n_atoms); end if
+    CALL pbc_ctrl_positions(positions)
+    if (pbc_debug) then; call recprt3("Coordinates after PBC update",positions,n_atoms); end if
+end if
 
 allocate(forces(n_atoms,3))
 CALL force_field_calc(positions,tot_pot,forces,debug_flag, suppress_flag = .false.)
@@ -129,9 +135,6 @@ if (meta_present) then
 elseif (p_present) then
     call simulation(positions,xyzfile)      ! run MD
 end if
-
-
-!call define_box()
 
 
 deallocate(forces)

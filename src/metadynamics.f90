@@ -249,7 +249,7 @@ write(*,'(A)') repeat('-', 150)
     end if
 
     ! TRACK DISPLACEMENT OF THE ATOMS
-    call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),displacement,n_atoms,atomnames)
+    call displacement_vec(positions_list(new,:,:),positions_list(current,:,:),displacement,n_atoms)
     total_displacement(:) = total_displacement(:) + displacement(:)
 
     ! WRITE TRAJECTORY FILE
