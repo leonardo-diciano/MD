@@ -116,13 +116,13 @@ for i in range(len(list_atom_types_to_print)):
             for j in mol.GetAtomWithIdx(i).GetNeighbors():
                 symbols.append(j.GetSymbol())
             if "O" in symbols:
-                list_atom_types_to_print[i] = "ho"
+                list_atom_types_to_print[i] = [i + 1,"H", "ho", float(mass_dict["H"])]
                 atom_assigned_types[i] = "ho"   
             elif "N" in symbols:
-                list_atom_types_to_print[i] = "hn"
+                list_atom_types_to_print[i] = [i + 1,"H", "hn", float(mass_dict["H"])]
                 atom_assigned_types[i] = "hn"
             else:
-                list_atom_types_to_print[i] = "hc"
+                list_atom_types_to_print[i] = [i + 1,"H", "hc", float(mass_dict["H"])]
                 atom_assigned_types[i] = "hc"   
 
 print(f"Atom Types assigned\n")
