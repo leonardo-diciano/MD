@@ -159,6 +159,8 @@ contains
                 write(*,*) "stopped before potential energy starts to increase again, otherwise the energy would "
                 write(*,"(A,F18.8,A)") "  increase about ", tot_pot-tot_pot_previous, " kJ/mol in the next step"
                 positions(:,:) = positions(:,:) - best_step * search_dir(:,:)
+                write(*,*) " "
+                write(*,*) "Final Potential Energy= ", tot_pot_previous, " kJ/mol"
                 exit
             end if
 
@@ -213,6 +215,9 @@ contains
         else
             write(*,"(A/)") "WARNING: energy minimization did not converge  "
         end if
+
+        write(*,*) " "
+        write(*,*) "Final Potential Energy= ", tot_pot, " kJ/mol"
 
         if (min_debug) then
             call recprt2("forces on the atoms after minimization",atomnames(:),forces(:,:),n_atoms)

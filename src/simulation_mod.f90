@@ -348,9 +348,9 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         call recprt2("r(t)",atomnames,positions_list(current,:,:),n_atoms)
     end if
 
-    write(*,"(A10,5(A20))") "istep", "E_tot", "E_kin","E_pot","Temp", "Pressure"
-    write(*,"(A10,5(A20))") "none","kJ/mol", "kJ/mol","kJ/mol", "K", "Pa"
-    write(*,'(A)') repeat('-', 110)
+    write(*,"(A10,5(A20,2x))") "istep", "E_tot", "E_kin","E_pot","Temp", "Pressure"
+    write(*,"(A10,5(A2,2x))") "none","kJ/mol", "kJ/mol","kJ/mol", "K", "Pa"
+    write(*,'(A)') repeat('-', 120)
 
     do while (istep<md_nsteps)
         istep = istep +1
@@ -435,7 +435,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         end do
 
         if (mod(istep,100) == 1) then
-            write(*,"(I8,2x,5(F22.8,2x))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
+            write(*,"(I8,2x,5(F20.8,2x))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
         end if
 
         ! PREPARE NEXT STEP

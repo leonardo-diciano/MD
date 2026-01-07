@@ -297,14 +297,14 @@ do
     if (index(line,'#') == 1) cycle ! Use # for input file comments
 
     if (index(trim(line), "topology") == 1) then
-        read(line, *) dummy_symb, topofile
+        topofile =  trim(adjustl(line(len("topology")+1:)))
         if (len_trim(topofile) > 0) then
             t_present = .true.
         end if
     end if
 
     if (index(trim(line), "coords") == 1) then
-        read(line, *) dummy_symb, xyzfile
+        xyzfile = trim(adjustl(line(len("coords")+1:)))
         if (len_trim(xyzfile) > 0) then
             c_present = .true.
         end if

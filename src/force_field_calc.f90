@@ -753,14 +753,16 @@ end if
 ! Calculate the total potential energy
 tot_pot = bond_pot + angle_pot + die_pot + imp_die_pot + lj_pot + coulomb_pot + pot_14
 
-if (debug_flag) then
+if (.not. suppress_flag) then
     write(*,*) ""
     write(*,*) "Total Potential energy: ", tot_pot, "kJ/mol"
-    write(*,*) ""
-    write(*,*) "Final cartesian forces over the atoms:"
-    do i=1, size(forces,1), 1
-        write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)
-    end do
+    if (debug_flag) then
+        write(*,*) ""
+        write(*,*) "Final cartesian forces over the atoms:"
+        do i=1, size(forces,1), 1
+            write(*,FMT='(I3,5X,F15.6,2X,F15.6,2X,F15.6)') i, forces(i,1), forces(i,2),forces(i,3)
+        end do
+    end if
 end if
 
 if (debug_flag) then

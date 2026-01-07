@@ -1,9 +1,9 @@
-topology 9methanes.top
-coords 9methanes.xyz 
+topology multiple_methanes/9methanes.top
+coords multiple_methanes/9methanes.xyz
 
 #comments
 [minimize] 
-conj_grad 
+method cg 
 etol 1.0e-6 
 ftol 1.0e-6
 max_iter 10000

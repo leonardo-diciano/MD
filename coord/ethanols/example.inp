@@ -1,18 +1,18 @@
-topology ethanols.top
-coords coord.xyz 
+topology ethanol_box.top
+coords ethanol_box.xyz 
 debug 0
 
 #comments
 [minimize] 
-conj_grad 
-max_iter 1000
+method sd
+max_iter 5000
 
 [run_md]
 ts 1  # in fs
-nsteps 5000
+nsteps 10000
 temp 300 # K
-press 150000
-ensemble NVE # or NVE or NPT 
+press 101000
+ensemble NPT # or NVE or NPT 
 integrator velocity_verlet
 fix_com true
 
