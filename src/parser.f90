@@ -332,6 +332,11 @@ do
         end if
     end if
 
+    if (index(trim(line),"pbc") == 1) then
+        read(line,*) dummy_symb, md_boxlength
+        md_pbc = .true.
+    end if
+
     if (index(trim(line),"[minimize]") == 1) then
         mini_block = .true.
         cycle
@@ -392,9 +397,6 @@ do
             if (dummy_symb2 == "true") then
                 md_fix_com_mom = .true.
             endif
-        elseif (index(trim(line),"pbc") == 1) then
-            read(line,*) dummy_symb, md_boxlength
-            md_pbc = .true.
         elseif (index(trim(line),"berendsen_tau") == 1) then
             read(line,*) dummy_symb, ber_tau
         elseif (index(trim(line),"berendsen_k") == 1) then

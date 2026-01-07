@@ -15,3 +15,4 @@ temp 298 # K
 ensemble NVT # or NVE or NPT 
 integrator velocity_verlet
 fix_com true
+traj_dump 25

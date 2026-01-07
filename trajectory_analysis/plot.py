@@ -56,7 +56,8 @@ def fes_reweight(cv, bias, temperature, gamma, nbins=500, discard=0.1):
 
     # Discard initial part
     a=int(discard*len(cv))
-    cv = np.asarray(cv[a:], dtype=float)
+    print(np.min(cv), np.argmin(cv),np.max(cv),np.argmax(cv))
+    cv = np.degrees(np.asarray(cv[a:], dtype=float))
     bias = np.asarray(bias[a:], dtype=float)
 
     # Reweight the probability distribution and evaluate the histogram
@@ -94,7 +95,7 @@ if not helpmode:
             print("properties: ",properties)
             print("units: ",units)
             print("check the input file if every property has a unit assigned to (or if it is unitless, it has a 'none')")
-        if len(properties) != 8:
+        if len(properties) != 11:
             print("WARNING: this analysis is for txt files containing the properties ['istep', 'E_tot', 'E_kin', 'E_pot', 'F_norm', 'Temp', 'Pressure', 'COM_momentum', 'CV_value', 'Inst_Bias', 'Tot_Bias'] only")
 
         istep,E_tot,E_kin,E_pot,F_norm,Temp,Pressure,com_mom,tot_bias,cv_value, inst_bias = [],[],[],[],[],[],[],[],[],[],[]
@@ -242,7 +243,7 @@ if not helpmode:
             plt.show()
 
     if (track_metaG):
-        bin,fes = fes_reweight(cv_value,inst_bias,300,10)
+        bin,fes = fes_reweight(cv_value,inst_bias,298,10)
         plt.figure()
         plt.plot(bin, fes, label = "Free Energy[kJ/mol]")
         plt.ylabel("Free Energy [kJ/mol]")
