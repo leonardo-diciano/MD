@@ -20,7 +20,7 @@ logical :: min_debug = .false.
 
 ! MD params
 public :: md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_debug, md_int
-integer :: md_nsteps=1000
+integer :: md_nsteps=1000, md_dump = 10
 real(kind=wp) :: md_ts=1.0 , md_temp=300.0, md_press=100000.0! in Pa
 character(len=32) :: md_ensemble="NVE", md_int="verlet"
 logical :: md_debug = .false., debug_print_all_matrices = .false., md_fix_com_mom = .false.
@@ -385,6 +385,8 @@ do
             read(line,*) dummy_symb, md_ensemble
         elseif (index(trim(line),"press") == 1) then
             read(line,*) dummy_symb, md_press
+        elseif (index(trim(line),"traj_dump") == 1) then
+            read(line,*) dummy_symb, md_dump
         elseif (index(trim(line),"fix_com") == 1) then
             read(line,*) dummy_symb, dummy_symb2
             if (dummy_symb2 == "true") then

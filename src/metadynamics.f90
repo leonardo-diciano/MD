@@ -16,7 +16,7 @@ use definitions, only: wp, md_pbc, md_boxlength
 use force_field_mod, only: n_atoms
 use parser_mod, only: meta_cv, meta_tau, meta_nsteps, meta_cv_type, meta_dT, meta_omega, meta_sigma, &
                      md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_temp, md_press, bus_tau, ber_k,&
-                     ber_tau
+                     ber_tau, md_dump
 implicit none
 
 real(kind=wp), intent(inout) :: positions(n_atoms,3)
@@ -63,6 +63,7 @@ if (md_pbc) then
 else
     write(*,"(A35,2X,A5)") "  MD Periodic Boundary Conditions: ", "False"
 end if
+write(*,"(A28,2X,I5,2X,A6)") "  Trajectory save interval: ", md_dump, " steps"
 write(*,"(A19,A8,2X,4(I4,2X))") "  Metadynamics CV: ", meta_cv_type, meta_cv(:)
 write(*,"(A32,I10)") "  Metadynamics number of steps: ", meta_nsteps
 write(*,"(A31,F10.3,A3)") "  Metadynamics timestep (tau): ", meta_tau, " fs"
@@ -86,7 +87,7 @@ use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot
 use ensemble_mod, only: berendsen_barostat, bussi_thermostat
 use force_field_mod, only: get_energy_gradient, mweights, n_atoms
 use parser_mod, only: atomnames, meta_cv, meta_tau, meta_nsteps, meta_cv_type, &
-                md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_debug, md_temp, md_press
+                md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_debug, md_temp, md_press, md_dump
 use propagators, only: velocity_verlet_position, velocity_verlet_velocity
 use pbc_mod, only: pbc_ctrl_positions
 
@@ -269,11 +270,13 @@ write(*,'(A)') repeat('-', 150)
     total_displacement(:) = total_displacement(:) + displacement(:)
 
     ! WRITE TRAJECTORY FILE
-    write(35,*) n_atoms
-    write(35,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
-    do i=1, size(positions,1), 1
-        write(35,FMT='(A3,3(2X,F15.8))') atomnames(i), positions_list(new,i,:)
-    end do
+    if (mod(istep,md_dump)== 1) then
+        write(35,*) n_atoms
+        write(35,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
+        do i=1, size(positions,1), 1
+            write(35,FMT='(A3,3(2X,F15.8))') atomnames(i), positions_list(new,i,:)
+        end do
+    end if
 
     ! PREPARE NEXT STEP
     positions_list(current,:,:) = positions_list(new,:,:)

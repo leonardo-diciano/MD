@@ -11,7 +11,7 @@ subroutine simulation(positions,xyzfile)
     use definitions, only: wp, md_pbc, md_boxlength
     use force_field_mod, only: n_atoms
     use parser_mod, only: md_int, md_nsteps, md_ts, md_ensemble, md_fix_com_mom, md_temp, md_press,&
-                        bus_tau, ber_k, ber_tau
+                        bus_tau, ber_k, ber_tau, md_dump
     implicit none
     real(kind=wp),intent(inout) :: positions(n_atoms,3)
     character(len=256), intent(in) :: xyzfile
@@ -48,6 +48,7 @@ subroutine simulation(positions,xyzfile)
     else
         write(*,"(A35,2X,A5)") "  MD Periodic Boundary Conditions: ", "False"
     end if
+    write(*,"(A28,2X,I5,2X,A6)") "  Trajectory save interval: ", md_dump, " steps"
     write(*,*) " "
     write(*,*) "Starting the molecular dynamics run"
 
@@ -66,7 +67,7 @@ subroutine simulation_verlet(positions,xyzfile)
     use lin_alg, only: displacement_vec
     use force_field_mod, only: get_energy_gradient, n_atoms, mweights
     use parser_mod, only: atomnames,md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_debug, md_fix_com_mom,&
-                        debug_print_all_matrices
+                        debug_print_all_matrices, md_dump
     use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
     use ensemble_mod, only: bussi_thermostat, berendsen_barostat
     use propagators, only: Verlet
@@ -213,11 +214,13 @@ subroutine simulation_verlet(positions,xyzfile)
         total_displacement(:) = total_displacement(:) + displacement(:)
 
         ! WRITE TRAJECTORY FILE
-        write(98,*) n_atoms
-        write(98,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
-        do i=1, size(positions,1), 1
-            write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions_list(new,i,:)
-        end do
+        if (mod(istep,md_dump)== 1) then
+            write(98,*) n_atoms
+            write(98,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
+            do i=1, size(positions,1), 1
+                write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions_list(new,i,:)
+            end do
+        end if
 
         if (mod(istep,100) == 1) then
         write(*,"(I8,2x,5(F18.8,2x))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure
@@ -278,7 +281,7 @@ subroutine simulation_vel_verlet(positions,xyzfile)
     use lin_alg, only: displacement_vec
     use force_field_mod, only: get_energy_gradient, n_atoms, mweights
     use parser_mod, only: atomnames,md_ts,md_nsteps,md_ensemble,md_temp, md_press, md_debug, md_fix_com_mom,&
-                        debug_print_all_matrices
+                        debug_print_all_matrices, md_dump
     use simulation_subroutines, only: init_v, get_pressure, get_temperature, get_tot_momentum
     use ensemble_mod, only: berendsen_barostat, bussi_thermostat
     use propagators, only: velocity_verlet_position, velocity_verlet_velocity
@@ -428,11 +431,13 @@ subroutine simulation_vel_verlet(positions,xyzfile)
         total_displacement(:) = total_displacement(:) + displacement(:)
 
         ! WRITE TRAJECTORY FILE
-        write(98,*) n_atoms
-        write(98,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
-        do i=1, size(positions,1), 1
-            write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions_list(new,i,:)
-        end do
+        if (mod(istep,md_dump)== 1) then
+            write(98,*) n_atoms
+            write(98,"(A,F6.2,A)") "atomic positions at t = ",istep * md_ts, " fs"
+            do i=1, size(positions,1), 1
+                write(98,FMT='(A3,3(2X,F15.8))') atomnames(i), positions_list(new,i,:)
+            end do
+        end if
 
         if (mod(istep,100) == 1) then
             write(*,"(I8,2x,5(F20.8,2x))") istep-1,E_kin+tot_pot,E_kin,tot_pot, instant_temp, pressure

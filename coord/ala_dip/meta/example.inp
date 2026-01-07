@@ -1,0 +1,22 @@
+topology ala_dip.top
+coords aladip_45_330.xyz
+
+#comments
+[minimize] 
+method cg 
+etol 1.0e-6 
+ftol 1.0e-6
+max_iter 10000
+
+[run_md]
+ts 0.1  # in fs
+nsteps 10000000
+temp 298 # K
+ensemble NVT # or NVE or NPT 
+integrator velocity_verlet
+fix_com true
+
+[run_meta]
+nsteps 100000
+tau 100.0
+cv dihedral 5 1 8 13
