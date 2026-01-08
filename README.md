@@ -4,10 +4,10 @@ MDProgram is a molecular dynamics code developed by Leonardo Di Ciano and Lila Z
  
 ## Installation
 
-To install MDProgrma, clone the repository and execute the installer _install.sh_ in the MDProgram directory.
+To install MDProgram, clone the repository and execute the installer _install.sh_ in the MD directory.
 ```
 >>  git clone https://github.com/lilazapp/MD.git
->>  cd MDProgram
+>>  cd MD
 >>  ./install.sh
 ```
 The compilation uses gfortran (>=13) and produces the md\_program binary.
