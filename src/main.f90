@@ -70,13 +70,15 @@ do
             write(*, '(6(A/),/,4(A/))')&
                 "Usage: md_program [options] …",&
                 "Options:",&
-                "  -t file.top  --top=file.top      Topology file - Required",&
-                "  -c coord.xyz --coord=coord.xyz   XYZ coordinate file - Required",&
+                "  -t file.top  --top file.top      Topology file - Required",&
+                "  -c coord.xyz --coord coord.xyz   XYZ coordinate file - Required",&
+                "  -i file.inp  --input file.inp    Input file with all information",&
                 "  -m [sd,cg]   --minimize          Require minimization with steepest descent(sd) or conjugate gradient(cg)",&
-                "  -p           --minimize          Propagate the system using the Verlet integrator and default settings",&
+                "  -p           --propagate         Propagate the system using the Verlet integrator and default settings",&
                 "  -h           --help              Print this help screen",&
                 "  -d           --debug             Print extended output for debug",&
                 "Examples:",&
+                "  main -i file.inp",&
                 "  main -t file.top -c coord.xyz",&
                 "  main -top=file.top -coord=coord.xyz"
             stop

@@ -1,0 +1,15 @@
+topology LJ_particles.top
+coords LJ_particles.xyz 
+debug 0
+
+#comments
+[minimize] 
+method cg 
+max_iter 1000
+
+[run_md]
+ts 0.1  # in fs
+nsteps 100000
+temp 300 # K
+ensemble NVT 
+integrator velocity_verlet

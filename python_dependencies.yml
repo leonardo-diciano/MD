@@ -1,4 +1,4 @@
-name: PineMD 
+name: MDProgram_env 
 channels:
  - conda-forge
  - psi4

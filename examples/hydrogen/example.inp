@@ -1,0 +1,9 @@
+topology H2_distorted.top  
+coords H2_distorted.xyz
+debug 0
+
+#comments
+[minimize] 
+method cg
+max_iter 5000
+
