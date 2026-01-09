@@ -56,7 +56,6 @@ def fes_reweight(cv, bias, temperature, gamma, nbins=500, discard=0.1):
 
     # Discard initial part
     a=int(discard*len(cv))
-    print(np.min(cv), np.argmin(cv),np.max(cv),np.argmax(cv))
     cv = np.degrees(np.asarray(cv[a:], dtype=float))
     bias = np.asarray(bias[a:], dtype=float)
 
